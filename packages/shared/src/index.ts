@@ -87,6 +87,57 @@ export interface RecordingHistoryItem {
   textPreview: string;
 }
 
+export type SegmentRecordStatus =
+  | "raw_only"
+  | "auto_improved"
+  | "manually_corrected"
+  | "translation_ready";
+
+export interface SegmentRecord {
+  audioClipRef: string;
+  detectedLanguage: string;
+  endAt: string;
+  improvedAutoTranscript: string | null;
+  jaTranslation: string | null;
+  manualCorrectedTranscript: string | null;
+  rawTranscript: string;
+  recordingId: string;
+  segmentId: string;
+  speakerDisplayName: string;
+  speakerId: string | null;
+  startAt: string;
+  status: SegmentRecordStatus;
+}
+
+export type RuleCandidateStatus = "confirmed" | "pending" | "rejected";
+
+export interface RuleCandidate {
+  candidateId: string;
+  createdAt: string;
+  fromText: string;
+  language: string;
+  segmentId: string;
+  speakerId: string;
+  status: RuleCandidateStatus;
+  toText: string;
+  updatedAt: string;
+}
+
+export interface SpeakerProfile {
+  aliases: string[];
+  correctionLexiconJa: Record<string, string>;
+  correctionLexiconZh: Record<string, string>;
+  displayName: string;
+  languagesSeen: string[];
+  notes: string;
+  ruleCandidates: RuleCandidate[];
+  sharedTerms: Record<string, string>;
+  speakerId: string;
+  styleRulesJa: string[];
+  styleRulesZh: string[];
+  updatedAt: string;
+}
+
 export interface AppInfoSnapshot {
   name: string;
   repositoryUrl: string;
@@ -110,6 +161,17 @@ export interface AutoUpdateSnapshot {
   latestVersion: string | null;
   phase: AutoUpdatePhase;
   statusMessage: string;
+}
+
+export interface LiveStageSnapshot {
+  activeSegment: SegmentRecord | null;
+  recentSegments: SegmentRecord[];
+}
+
+export interface ReviewSegmentSnapshot {
+  selectedRecordingId: string | null;
+  segments: SegmentRecord[];
+  speakers: SpeakerProfile[];
 }
 
 export type SidecarRequest =
@@ -141,7 +203,9 @@ export interface DesktopSnapshot {
   devices: DeviceInfo[];
   engineReady: boolean;
   history: RecordingHistoryItem[];
+  liveStage: LiveStageSnapshot;
   permission: MicrophonePermissionStatus;
+  review: ReviewSegmentSnapshot;
   settings: AppSettings;
   status: RecorderStatusSnapshot;
   updater: AutoUpdateSnapshot;
