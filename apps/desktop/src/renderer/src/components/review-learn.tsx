@@ -155,7 +155,11 @@ export function ReviewLearn({
 
     setFocusedSentenceDraftId(draftId);
     sentenceDraftRefs.current[draftId]?.focus();
+    const nextCue = pendingCandidateFocus.cue;
     setPendingCandidateFocus(null);
+    if (nextCue) {
+      void jumpToCue(nextCue);
+    }
   }, [activeSegment, pendingCandidateFocus, sentenceDrafts]);
 
   useEffect(() => {
