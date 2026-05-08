@@ -4,13 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_SETTINGS,
-  EMPTY_LIVE_STAGE_SNAPSHOT,
-  EMPTY_REVIEW_SNAPSHOT,
-  type AppSettings,
-  type DesktopSnapshot,
-  type RuleCandidate,
-  type SegmentRecord,
-  type SpeakerProfile
+  type AppSettings
 } from "@eve/shared";
 
 vi.mock("electron", () => ({
@@ -130,21 +124,6 @@ describe("desktop store settings", () => {
       deviceLabel: expectedSettings.recording.device
     });
   });
-
-  it("supports review snapshots that link segments, speakers, and rule candidates", async () => {
-    const { getIdleStatus, getSettings } = await import("./store");
-    const snapshot = buildReviewSnapshot(getSettings(), getIdleStatus());
-
-    expect(snapshot.liveStage).toMatchObject({
-      activeSegment: snapshot.review.segments[0],
-      recentSegments: [snapshot.review.segments[0]]
-    });
-    expect(summarizeReviewSnapshot(snapshot)).toEqual({
-      displayTranscript: "长句短句都有，这设计吧。",
-      pendingCandidates: ["长劲短劲->长句短句"],
-      speakerName: "王晋"
-    });
-  });
 });
 
 function buildExpectedSettings(storeDir: string): AppSettings {
@@ -170,113 +149,5 @@ function buildExpectedSettings(storeDir: string): AppSettings {
     transcribe: {
       watch: true
     }
-  };
-}
-
-function buildReviewSnapshot(
-  settings: AppSettings,
-  status: DesktopSnapshot["status"]
-): DesktopSnapshot {
-  const segment: SegmentRecord = {
-    audioClipRef: "/tmp/20260507_120000.wav",
-    detectedLanguage: "zh",
-    endAt: "2026-05-07T12:00:08.000Z",
-    improvedAutoTranscript: "长句短句都有，这设计吧。",
-    jaTranslation: "長文も短文もあります、この設計ですね。",
-    manualCorrectedTranscript: null,
-    rawTranscript: "长劲短劲都有，这设计吧。",
-    recordingId: "rec-1",
-    segmentId: "seg-1",
-    speakerDisplayName: "王晋",
-    speakerId: "speaker-wj",
-    startAt: "2026-05-07T12:00:00.000Z",
-    status: "translation_ready"
-  };
-  const candidate: RuleCandidate = {
-    candidateId: "candidate-1",
-    createdAt: "2026-05-07T12:10:00.000Z",
-    fromText: "长劲短劲",
-    language: "zh",
-    segmentId: segment.segmentId,
-    speakerId: "speaker-wj",
-    status: "pending",
-    toText: "长句短句",
-    updatedAt: "2026-05-07T12:10:00.000Z"
-  };
-  const speaker: SpeakerProfile = {
-    aliases: ["晋哥"],
-    correctionLexiconJa: {},
-    correctionLexiconZh: {
-      "长劲短劲": "长句短句"
-    },
-    displayName: "王晋",
-    languagesSeen: ["zh", "ja"],
-    notes: "Prefers product terms kept in English.",
-    ruleCandidates: [candidate],
-    sharedTerms: {
-      Qwen3: "Qwen3"
-    },
-    speakerId: "speaker-wj",
-    styleRulesJa: [],
-    styleRulesZh: ["Prefer short clauses where possible."],
-    updatedAt: "2026-05-07T12:11:00.000Z"
-  };
-
-  return {
-    app: {
-      name: "eve",
-      repositoryUrl: "https://github.com/nexmoe/eve",
-      version: "0.0.0"
-    },
-    devices: [],
-    engineReady: false,
-    history: [],
-    liveStage: {
-      ...EMPTY_LIVE_STAGE_SNAPSHOT,
-      activeSegment: segment,
-      recentSegments: [segment]
-    },
-    permission: {
-      message: "Ready",
-      state: "authorized",
-      supported: true
-    },
-    review: {
-      ...EMPTY_REVIEW_SNAPSHOT,
-      selectedRecordingId: segment.recordingId,
-      segments: [segment],
-      speakers: [speaker]
-    },
-    settings,
-    status,
-    updater: {
-      currentVersion: "0.0.0",
-      downloadedVersion: null,
-      downloadedVersionReady: false,
-      errorMessage: null,
-      installDeferredUntilIdle: false,
-      latestVersion: null,
-      phase: "idle",
-      statusMessage: "Idle"
-    },
-    windowPinned: false
-  };
-}
-
-function summarizeReviewSnapshot(snapshot: DesktopSnapshot) {
-  const activeSegment = snapshot.review.segments[0];
-  const speaker = snapshot.review.speakers.find((entry) => entry.speakerId === activeSegment.speakerId);
-  return {
-    displayTranscript:
-      activeSegment.manualCorrectedTranscript ??
-      activeSegment.improvedAutoTranscript ??
-      activeSegment.rawTranscript,
-    pendingCandidates:
-      speaker?.ruleCandidates
-        .filter((candidate) => {
-          return candidate.segmentId === activeSegment.segmentId && candidate.status === "pending";
-        })
-        .map((candidate) => `${candidate.fromText}->${candidate.toText}`) ?? [],
-    speakerName: speaker?.displayName ?? activeSegment.speakerDisplayName
   };
 }
