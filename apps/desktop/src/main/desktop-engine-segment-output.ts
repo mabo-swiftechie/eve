@@ -45,7 +45,7 @@ interface BuildEnrichedSegmentRecordOptions {
   recordingId: string;
   speaker: string | null;
   speakerDisplayName: string;
-  speakerId: string;
+  speakerId: string | null;
   startOffsetMs: number;
   startedAt: Date;
   vadSampleCount: number;

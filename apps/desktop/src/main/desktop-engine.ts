@@ -89,27 +89,47 @@ export class DesktopEngine {
 
   async applySettings(settings: AppSettings): Promise<void> {
     const previous = this.settings;
-    this.settings = settings;
-    if (
-      this.recognizer &&
-      (previous.recording.asrLanguage !== settings.recording.asrLanguage ||
-        previous.recording.disableAsr !== settings.recording.disableAsr)
-    ) {
-      this.recognizer = settings.recording.disableAsr
-        ? null
-        : createSenseVoiceRecognizer(this.modelManager.getSenseVoiceDirectory(), settings.recording.asrLanguage);
-    }
-    if (
+    const recognizerSettingsChanged =
+      previous.recording.asrLanguage !== settings.recording.asrLanguage ||
+      previous.recording.disableAsr !== settings.recording.disableAsr;
+    const shouldRotateOpenSegment =
       this.status.recording &&
       this.segment &&
       (previous.recording.audioFormat !== settings.recording.audioFormat ||
         previous.recording.outputDir !== settings.recording.outputDir ||
-        previous.recording.disableAsr !== settings.recording.disableAsr)
-    ) {
+        previous.recording.disableAsr !== settings.recording.disableAsr);
+
+    if (shouldRotateOpenSegment) {
       if (settings.recording.audioFormat === "flac") {
         await this.modelManager.requireFfmpeg();
       }
-      await this.rotateSegment(this.segment.deviceLabel);
+      const deviceLabel = this.segment.deviceLabel;
+      await this.flushVad();
+      await this.closeSegment();
+      this.settings = settings;
+      if (recognizerSettingsChanged) {
+        this.recognizer = settings.recording.disableAsr
+          ? null
+          : createSenseVoiceRecognizer(
+              this.modelManager.getSenseVoiceDirectory(),
+              settings.recording.asrLanguage
+            );
+      }
+      this.segment = await this.openSegment(deviceLabel);
+      this.patchStatus({
+        asrPreview: "",
+        statusMessage: "Started a new recording segment."
+      });
+    } else {
+      this.settings = settings;
+      if (recognizerSettingsChanged) {
+        this.recognizer = settings.recording.disableAsr
+          ? null
+          : createSenseVoiceRecognizer(
+              this.modelManager.getSenseVoiceDirectory(),
+              settings.recording.asrLanguage
+            );
+      }
     }
     this.patchStatus({
       asrEnabled: !settings.recording.disableAsr,
@@ -340,12 +360,20 @@ export class DesktopEngine {
       const speakerProfile = speaker
         ? await this.speakerProfileStore.findProfileByName(speaker)
         : null;
-      const speakerId = speakerProfile?.speakerId ?? "speaker:unknown";
+      const speakerId = speakerProfile?.speakerId ?? null;
       const speakerDisplayName = speakerProfile?.displayName ?? speaker ?? "Speaker A";
       const detectedLanguage = normalizeLanguage(result.lang);
       const improvedAutoTranscript = this.improveTranscript(text, detectedLanguage, speakerProfile);
-      const jaTranslation =
-        detectedLanguage === "zh" ? await this.segmentTranslator.translateChineseToJapanese(improvedAutoTranscript) : null;
+      let jaTranslation: string | null = null;
+      if (detectedLanguage === "zh") {
+        try {
+          jaTranslation = await this.segmentTranslator.translateChineseToJapanese(
+            improvedAutoTranscript
+          );
+        } catch (error) {
+          log.warn("[eve][engine] failed to translate zh segment", error);
+        }
+      }
       const enrichedSegment = buildEnrichedSegmentRecord({
         audioClipRef: this.segment.audioPath,
         confidence,
