@@ -66,7 +66,7 @@ type SherpaOnnx = {
 
 let sherpaOnnxCache: SherpaOnnx | null = null;
 
-const sherpaOnnx = (): SherpaOnnx => {
+export const sherpaOnnx = (): SherpaOnnx => {
   sherpaOnnxCache ??= createRequire(import.meta.url)(resolveSherpaModulePath()) as SherpaOnnx;
   return sherpaOnnxCache;
 };

@@ -72,6 +72,7 @@ export interface RecorderStatusSnapshot {
   recording: boolean;
   rms: number;
   senseVoiceReady: boolean;
+  speakerEmbeddingReady: boolean;
   statusMessage: string;
   vadReady: boolean;
   waveformBins: number[];
