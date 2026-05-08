@@ -5,6 +5,8 @@ import { app, type BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions
 import {
   DEFAULT_SETTINGS,
   DEFAULT_STATUS,
+  EMPTY_LIVE_STAGE_SNAPSHOT,
+  EMPTY_REVIEW_SNAPSHOT,
   type AppSettings,
   type DesktopSnapshot,
   type DeviceInfo,
@@ -121,7 +123,16 @@ const buildSnapshot = (): DesktopSnapshot => {
     devices: cachedDevices,
     engineReady: engine?.getReady() ?? false,
     history: cachedHistory,
+    liveStage: {
+      ...EMPTY_LIVE_STAGE_SNAPSHOT,
+      recentSegments: []
+    },
     permission: cachedPermission,
+    review: {
+      ...EMPTY_REVIEW_SNAPSHOT,
+      segments: [],
+      speakers: []
+    },
     settings,
     status: lastStatus,
     updater: getAutoUpdateSnapshot(),
