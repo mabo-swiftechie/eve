@@ -5,13 +5,14 @@ import {
   type SentenceCorrection,
   type SentenceCue
 } from "@eve/shared";
+import { ReviewAudioPanel } from "./review-audio-panel";
+import { ReviewSentenceEditor } from "./review-sentence-editor";
 import { SpeakerProfilePanel } from "./speaker-profile-panel";
 import {
   buildSentenceDrafts,
   composeSentenceDrafts,
   cueKey,
   findSentenceDraftIdForCandidate,
-  getCueAtTime,
   type SentenceDraft
 } from "./review-interactions";
 import { createT } from "../lib/i18n";
@@ -250,83 +251,18 @@ export function ReviewLearn({
                 value={activeSegment.improvedAutoTranscript ?? ""}
               />
               <LayerBlock label={t("reviewPreviewLabel")} value={previewTranscript} />
-              <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
-                      {t("reviewAudioLabel")}
-                    </p>
-                    <p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
-                      {audioDataUrl
-                        ? t("reviewAudioReady")
-                        : audioMissing
-                          ? t("reviewAudioMissing")
-                          : t("reviewAudioDescription")}
-                    </p>
-                  </div>
-                  <button
-                    className="inline-flex h-8 items-center justify-center rounded-lg bg-[color:var(--surface)] px-3.5 text-xs font-medium text-[color:var(--foreground)] ring-1 ring-[color:var(--border)] shadow-[var(--shadow-raised-sm)]"
-                    disabled={!snapshot.review.selectedRecordingId || audioLoading}
-                    type="button"
-                    onClick={() => void loadAudio()}
-                  >
-                    {audioLoading ? t("reviewAudioLoading") : t("reviewAudioAction")}
-                  </button>
-                </div>
-                {audioDataUrl ? (
-                  <audio
-                    ref={audioRef}
-                    className="mt-3 w-full"
-                    controls
-                    onEnded={() => setActiveCueKey(null)}
-                    preload="metadata"
-                    src={audioDataUrl}
-                    onPause={() => {
-                      if (audioRef.current?.ended) {
-                        setActiveCueKey(null);
-                      }
-                    }}
-                    onTimeUpdate={() => {
-                      const currentAudio = audioRef.current;
-                      if (!currentAudio) {
-                        return;
-                      }
-                      const currentCue = getCueAtTime(
-                        cueList,
-                        Math.round(currentAudio.currentTime * 1000)
-                      );
-                      setActiveCueKey(currentCue ? cueKey(currentCue) : null);
-                    }}
-                  />
-                ) : null}
-                {cueList.length > 0 ? (
-                  <div className="mt-3 space-y-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
-                      {t("reviewSentenceCuesTitle")}
-                    </p>
-                    <div className="grid gap-2">
-                      {cueList.map((cue, index) => (
-                        <button
-                          key={`${cue.startMs}:${cue.endMs}:${index}`}
-                          aria-pressed={activeCueKey === cueKey(cue)}
-                          className={
-                            activeCueKey === cueKey(cue)
-                              ? "rounded-lg border border-[color:var(--ring)] bg-[color:var(--surface)] px-3 py-2 text-left text-xs leading-5 text-[color:var(--foreground)] ring-1 ring-[color:var(--ring)]"
-                              : "rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-left text-xs leading-5 text-[color:var(--foreground)]"
-                          }
-                          type="button"
-                          onClick={() => void jumpToCue(cue)}
-                        >
-                          <span className="font-semibold text-[color:var(--muted)]">
-                            {formatCueTime(cue.startMs)}
-                          </span>
-                          <span className="ml-2">{cue.text}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
-              </div>
+              <ReviewAudioPanel
+                activeCueKey={activeCueKey}
+                audioDataUrl={audioDataUrl}
+                audioLoading={audioLoading}
+                audioMissing={audioMissing}
+                audioRef={audioRef}
+                cueList={cueList}
+                jumpToCue={jumpToCue}
+                language={snapshot.settings.desktop.language}
+                loadAudio={loadAudio}
+                setActiveCueKey={setActiveCueKey}
+              />
               <label className="block space-y-1">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
                   {t("reviewManualLabel")}
@@ -337,52 +273,28 @@ export function ReviewLearn({
                   onChange={(event) => setDraftManual(event.currentTarget.value)}
                 />
               </label>
-              {sentenceDrafts.length > 0 ? (
-                <div className="space-y-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
-                    {t("reviewSentenceEditorTitle")}
-                  </p>
-                  <div className="grid gap-3">
-                    {sentenceDrafts.map((draft, index) => (
-                      <label key={draft.id} className="block space-y-1">
-                        <span className="text-[11px] font-semibold text-[color:var(--muted)]">
-                          {draft.cue ? formatCueTime(draft.cue.startMs) : `${index + 1}`}
-                        </span>
-                        <textarea
-                          ref={(node) => {
-                            sentenceDraftRefs.current[draft.id] = node;
-                          }}
-                          aria-label={`sentence-draft-${index + 1}`}
-                          className={
-                            focusedSentenceDraftId === draft.id
-                              ? "min-h-20 w-full rounded-lg border border-[color:var(--ring)] bg-[color:var(--surface)] px-3 py-2 text-sm leading-6 text-[color:var(--foreground)] outline-none ring-1 ring-[color:var(--ring)] focus:border-[color:var(--ring)] focus:ring-1 focus:ring-[color:var(--ring)]"
-                              : "min-h-20 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm leading-6 text-[color:var(--foreground)] outline-none focus:border-[color:var(--ring)] focus:ring-1 focus:ring-[color:var(--ring)]"
-                          }
-                          value={draft.text}
-                          onFocus={() => setFocusedSentenceDraftId(draft.id)}
-                          onChange={(event) => {
-                            if (!activeSegment) {
-                              return;
-                            }
-                            const nextSentenceDrafts = sentenceDrafts.map((item) =>
-                              item.id === draft.id
-                                ? { ...item, text: event.currentTarget.value }
-                                : item
-                            );
-                            setSentenceDrafts(nextSentenceDrafts);
-                            setDraftManual(
-                              composeSentenceDrafts({
-                                drafts: nextSentenceDrafts,
-                                language: activeSegment.detectedLanguage
-                              })
-                            );
-                          }}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
+              <ReviewSentenceEditor
+                focusedSentenceDraftId={focusedSentenceDraftId}
+                language={snapshot.settings.desktop.language}
+                sentenceDraftRefs={sentenceDraftRefs}
+                sentenceDrafts={sentenceDrafts}
+                setFocusedSentenceDraftId={setFocusedSentenceDraftId}
+                updateSentenceDraft={(draftId, value) => {
+                  if (!activeSegment) {
+                    return;
+                  }
+                  const nextSentenceDrafts = sentenceDrafts.map((item) =>
+                    item.id === draftId ? { ...item, text: value } : item
+                  );
+                  setSentenceDrafts(nextSentenceDrafts);
+                  setDraftManual(
+                    composeSentenceDrafts({
+                      drafts: nextSentenceDrafts,
+                      language: activeSegment.detectedLanguage
+                    })
+                  );
+                }}
+              />
               {activeSegment.jaTranslation ? (
                 <LayerBlock label={t("reviewTranslationLabel")} value={activeSegment.jaTranslation} />
               ) : null}
@@ -473,13 +385,6 @@ async function playCue(
     audio.pause();
     pauseTimerRef.current = null;
   }, Math.max(cue.endMs - cue.startMs, 500));
-}
-
-function formatCueTime(startMs: number): string {
-  const totalSeconds = Math.floor(startMs / 1000);
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-  const seconds = String(totalSeconds % 60).padStart(2, "0");
-  return `${minutes}:${seconds}`;
 }
 
 function LayerBlock({ label, value }: { label: string; value: string }) {
