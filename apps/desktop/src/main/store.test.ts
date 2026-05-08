@@ -16,27 +16,77 @@ import {
 vi.mock("electron", () => ({
   default: {
     app: {
+      getName: () => "eve",
       getPath: (name: string) => {
-        if (name !== "documents") {
-          throw new Error(`unexpected path lookup: ${name}`);
+        if (name === "documents") {
+          return join(tmpdir(), "eve-documents-test");
         }
-        return join(tmpdir(), "eve-documents-test");
-      }
+        if (name === "userData") {
+          return join(tmpdir(), "eve-user-data-test");
+        }
+        throw new Error(`unexpected path lookup: ${name}`);
+      },
+      getVersion: () => "0.0.0",
+      isPackaged: false,
+      on: vi.fn(),
+      quit: vi.fn(),
+      requestSingleInstanceLock: () => true,
+      setAppUserModelId: vi.fn(),
+      setLoginItemSettings: vi.fn(),
+      setName: vi.fn(),
+      show: vi.fn(),
+      whenReady: vi.fn(() => new Promise<void>(() => {}))
     },
     nativeTheme: {
       themeSource: "system"
+    },
+    dialog: {
+      showOpenDialog: vi.fn()
+    },
+    ipcMain: {
+      handle: vi.fn(),
+      on: vi.fn()
+    },
+    shell: {
+      openExternal: vi.fn(),
+      openPath: vi.fn()
     }
   },
   app: {
+    getName: () => "eve",
     getPath: (name: string) => {
-      if (name !== "documents") {
-        throw new Error(`unexpected path lookup: ${name}`);
+      if (name === "documents") {
+        return join(tmpdir(), "eve-documents-test");
       }
-      return join(tmpdir(), "eve-documents-test");
-    }
+      if (name === "userData") {
+        return join(tmpdir(), "eve-user-data-test");
+      }
+      throw new Error(`unexpected path lookup: ${name}`);
+    },
+    getVersion: () => "0.0.0",
+    isPackaged: false,
+    on: vi.fn(),
+    quit: vi.fn(),
+    requestSingleInstanceLock: () => true,
+    setAppUserModelId: vi.fn(),
+    setLoginItemSettings: vi.fn(),
+    setName: vi.fn(),
+    show: vi.fn(),
+    whenReady: vi.fn(() => new Promise<void>(() => {}))
+  },
+  dialog: {
+    showOpenDialog: vi.fn()
+  },
+  ipcMain: {
+    handle: vi.fn(),
+    on: vi.fn()
   },
   nativeTheme: {
     themeSource: "system"
+  },
+  shell: {
+    openExternal: vi.fn(),
+    openPath: vi.fn()
   }
 }));
 
