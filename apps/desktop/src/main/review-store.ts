@@ -299,7 +299,7 @@ function deriveSentenceCandidates(segment: SegmentRecord): RuleCandidate[] {
     if (!manual || !automatic || manual === automatic) {
       return [];
     }
-    return [buildCandidate(segment, manual, automatic, index)];
+    return [buildCandidate(segment, manual, automatic, index, correction.cue)];
   });
 }
 
@@ -324,7 +324,8 @@ function buildCandidate(
   segment: SegmentRecord,
   manual: string,
   automatic: string,
-  sentenceIndex?: number
+  sentenceIndex?: number,
+  sentenceCue?: SentenceCue | null
 ): RuleCandidate {
   const timestamp = new Date().toISOString();
   return {
@@ -336,6 +337,8 @@ function buildCandidate(
     fromText: automatic,
     language: segment.detectedLanguage,
     segmentId: segment.segmentId,
+    sentenceCue,
+    sentenceIndex,
     speakerId: segment.speakerId ?? "unassigned",
     status: "pending",
     toText: manual,

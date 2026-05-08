@@ -133,6 +133,8 @@ export interface RuleCandidate {
   fromText: string;
   language: string;
   segmentId: string;
+  sentenceCue?: SentenceCue | null;
+  sentenceIndex?: number;
   speakerId: string;
   status: RuleCandidateStatus;
   toText: string;

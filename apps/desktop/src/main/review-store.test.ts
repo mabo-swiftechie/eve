@@ -178,6 +178,12 @@ describe("ReviewStore", () => {
       expect.objectContaining({
         candidateId: "segment-1:manual:0",
         fromText: "长劲短劲都有。",
+        sentenceCue: {
+          endMs: 1200,
+          startMs: 0,
+          text: "长劲短劲都有。"
+        },
+        sentenceIndex: 0,
         toText: "长句短句都有。"
       })
     );

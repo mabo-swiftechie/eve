@@ -32,6 +32,8 @@ describe("ReviewLearn", () => {
     expect(markup).toContain("Sentence editing");
     expect(markup).toContain("王晋");
     expect(markup).toContain("Review candidates");
+    expect(markup).toContain("Sentence 1");
+    expect(markup).toContain("0.0s–2.2s");
     expect(markup).toContain("Apply");
     expect(markup).toContain("Keep note");
   });
@@ -74,6 +76,12 @@ function createSnapshot(): DesktopSnapshot {
         fromText: "长劲短劲都有，这设计吧。",
         language: "zh",
         segmentId: "segment-1",
+        sentenceCue: {
+          endMs: 2200,
+          startMs: 0,
+          text: "长劲短劲都有，这设计吧。"
+        },
+        sentenceIndex: 0,
         speakerId: "speaker-wj",
         status: "pending",
         toText: "长句短句都有，这设计吧。",

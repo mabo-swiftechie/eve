@@ -95,6 +95,12 @@ export function SpeakerProfilePanel({
                       {describeCandidateStatus(candidate, t)}
                     </span>
                   </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] uppercase tracking-[0.12em] text-[color:var(--muted)]">
+                    <span>{describeCandidateSource(candidate, t)}</span>
+                    {candidate.sentenceCue ? (
+                      <span>{describeCandidateWindow(candidate.sentenceCue, t)}</span>
+                    ) : null}
+                  </div>
                   <p className="mt-2 text-[color:var(--muted)]">{candidate.fromText}</p>
                   <p className="mt-1 text-[color:var(--foreground)]">{candidate.toText}</p>
                   <div className="mt-3 flex gap-2">
@@ -220,4 +226,28 @@ function describeCandidateStatus(
     return t("reviewSpeakerRejectedStatus");
   }
   return t("reviewSpeakerPendingStatus");
+}
+
+function describeCandidateSource(
+  candidate: SpeakerProfile["ruleCandidates"][number],
+  t: ReturnType<typeof createT>
+): string {
+  if (candidate.sentenceIndex === undefined) {
+    return t("reviewSpeakerCandidateSegment");
+  }
+  return t("reviewSpeakerCandidateSentence", { index: candidate.sentenceIndex + 1 });
+}
+
+function describeCandidateWindow(
+  cue: NonNullable<SpeakerProfile["ruleCandidates"][number]["sentenceCue"]>,
+  t: ReturnType<typeof createT>
+): string {
+  return t("reviewSpeakerCandidateWindow", {
+    end: formatCueSeconds(cue.endMs),
+    start: formatCueSeconds(cue.startMs)
+  });
+}
+
+function formatCueSeconds(ms: number): string {
+  return (ms / 1000).toFixed(1);
 }
