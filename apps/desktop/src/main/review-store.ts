@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import type { RuleCandidate, SegmentRecord, SentenceCue } from "@eve/shared";
+import type { RuleCandidate, SegmentRecord, SentenceCorrection, SentenceCue } from "@eve/shared";
 import { writeJsonAtomic } from "./audio-utils";
 
 interface SegmentPayload {
@@ -10,6 +10,7 @@ interface SegmentPayload {
   improved_auto_transcript?: unknown;
   ja_translation?: unknown;
   manual_corrected_transcript?: unknown;
+  manual_sentence_corrections?: unknown;
   raw_transcript?: unknown;
   recording_id?: unknown;
   segment_id?: unknown;
@@ -89,7 +90,8 @@ export class ReviewStore {
   async saveManualCorrection(
     recordingDirectory: string,
     segmentId: string,
-    transcript: string
+    transcript: string,
+    sentenceCorrections?: SentenceCorrection[]
   ): Promise<SegmentRecord> {
     const normalizedTranscript = transcript.trim();
     const sources = await this.listSegmentSources(recordingDirectory);
@@ -107,6 +109,7 @@ export class ReviewStore {
           return {
             ...item,
             manual_corrected_transcript: normalizedTranscript || null,
+            manual_sentence_corrections: serializeSentenceCorrections(sentenceCorrections),
             status: normalizedTranscript ? "manually_corrected" : target.status
           };
         })
@@ -120,6 +123,7 @@ export class ReviewStore {
     return {
       ...target,
       manualCorrectedTranscript: normalizedTranscript || null,
+      manualSentenceCorrections: sentenceCorrections,
       status: normalizedTranscript ? "manually_corrected" : target.status
     };
   }
@@ -176,6 +180,7 @@ function parseSegment(
     improvedAutoTranscript: toNullableText(value.improved_auto_transcript),
     jaTranslation: toNullableText(value.ja_translation),
     manualCorrectedTranscript: toNullableText(value.manual_corrected_transcript),
+    manualSentenceCorrections: parseSentenceCorrections(value.manual_sentence_corrections),
     rawTranscript,
     recordingId: toText(value.recording_id),
     segmentId,
@@ -228,6 +233,59 @@ function parseSentenceCues(value: unknown): SentenceCue[] | undefined {
     })
     .filter((cue): cue is SentenceCue => cue !== null);
   return cues.length > 0 ? cues : undefined;
+}
+
+function parseSentenceCorrections(value: unknown): SentenceCorrection[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const corrections = value
+    .map((item) => {
+      if (!isObject(item)) {
+        return null;
+      }
+      const text = toText(item.text).trim();
+      if (!text) {
+        return null;
+      }
+      return {
+        cue: parseSentenceCue(item.cue),
+        text
+      };
+    })
+    .filter((correction): correction is SentenceCorrection => correction !== null);
+  return corrections.length > 0 ? corrections : undefined;
+}
+
+function parseSentenceCue(value: unknown): SentenceCue | null {
+  if (!isObject(value)) {
+    return null;
+  }
+  const text = toText(value.text).trim();
+  const startMs = toNumber(value.start_ms);
+  const endMs = toNumber(value.end_ms);
+  if (!text || startMs === null || endMs === null) {
+    return null;
+  }
+  return { endMs, startMs, text };
+}
+
+function serializeSentenceCorrections(
+  corrections?: SentenceCorrection[]
+): Array<Record<string, unknown>> | null {
+  if (!corrections || corrections.length === 0) {
+    return null;
+  }
+  return corrections.map((correction) => ({
+    cue: correction.cue
+      ? {
+          end_ms: correction.cue.endMs,
+          start_ms: correction.cue.startMs,
+          text: correction.cue.text
+        }
+      : null,
+    text: correction.text
+  }));
 }
 
 function toNumber(value: unknown): number | null {

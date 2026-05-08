@@ -387,8 +387,13 @@ registerDesktopIpcHandlers({
   runTranscribe: async (inputDir) => {
     await engine?.runTranscribe(inputDir);
   },
-  saveManualCorrection: async (recordingId, segmentId, transcript) => {
-    const updated = await reviewStore.saveManualCorrection(recordingId, segmentId, transcript);
+  saveManualCorrection: async (recordingId, segmentId, transcript, sentenceCorrections) => {
+    const updated = await reviewStore.saveManualCorrection(
+      recordingId,
+      segmentId,
+      transcript,
+      sentenceCorrections
+    );
     const candidates = await reviewStore.deriveCandidates(updated);
     if (updated.speakerId) {
       for (const candidate of candidates) {

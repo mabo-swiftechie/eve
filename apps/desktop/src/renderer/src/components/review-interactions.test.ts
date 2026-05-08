@@ -68,6 +68,23 @@ describe("review interactions", () => {
     expect(drafts.map((draft) => draft.text)).toEqual(["改善后的第一句。", "改善后的第二句。"]);
   });
 
+  it("prefers stored manual sentence corrections when present", () => {
+    const drafts = buildSentenceDrafts({
+      cues: [
+        { endMs: 1800, startMs: 0, text: "第一句。" },
+        { endMs: 4200, startMs: 1801, text: "第二句。" }
+      ],
+      language: "zh",
+      manualCorrections: [
+        { cue: null, text: "人工第一句。" },
+        { cue: null, text: "人工第二句。" }
+      ],
+      seedText: "不会被使用。"
+    });
+
+    expect(drafts.map((draft) => draft.text)).toEqual(["人工第一句。", "人工第二句。"]);
+  });
+
   it("composes sentence drafts back into one zh transcript", () => {
     const transcript = composeSentenceDrafts({
       drafts: [

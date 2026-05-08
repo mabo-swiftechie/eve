@@ -4,6 +4,7 @@ import type {
   DesktopSnapshot,
   DeviceInfo,
   MicrophonePermissionStatus,
+  SentenceCorrection,
   SpeakerProfile
 } from "@eve/shared";
 
@@ -31,7 +32,8 @@ export interface DesktopBridgeApi {
   saveManualCorrection: (
     recordingId: string,
     segmentId: string,
-    transcript: string
+    transcript: string,
+    sentenceCorrections?: SentenceCorrection[]
   ) => Promise<DesktopSnapshot>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   setWindowPinned: (pinned: boolean) => Promise<DesktopSnapshot>;
@@ -78,8 +80,14 @@ const api: DesktopBridgeApi = {
   openMicrophoneSettings: () => ipcRenderer.invoke("desktop:open-permission-settings"),
   requestMicrophonePermission: () => ipcRenderer.invoke("desktop:request-permission"),
   runTranscribe: (inputDir) => ipcRenderer.invoke("desktop:run-transcribe", inputDir),
-  saveManualCorrection: (recordingId, segmentId, transcript) =>
-    ipcRenderer.invoke("desktop:save-manual-correction", recordingId, segmentId, transcript),
+  saveManualCorrection: (recordingId, segmentId, transcript, sentenceCorrections) =>
+    ipcRenderer.invoke(
+      "desktop:save-manual-correction",
+      recordingId,
+      segmentId,
+      transcript,
+      sentenceCorrections
+    ),
   saveSettings: (settings) => ipcRenderer.invoke("desktop:save-settings", settings),
   setWindowPinned: (pinned) => ipcRenderer.invoke("desktop:set-window-pinned", pinned),
   startRecording: () => ipcRenderer.invoke("desktop:start-recording"),

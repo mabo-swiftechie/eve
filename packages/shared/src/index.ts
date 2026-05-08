@@ -94,6 +94,11 @@ export interface SentenceCue {
   text: string;
 }
 
+export interface SentenceCorrection {
+  cue: SentenceCue | null;
+  text: string;
+}
+
 export type SegmentRecordStatus =
   | "raw_only"
   | "auto_improved"
@@ -107,6 +112,7 @@ export interface SegmentRecord {
   improvedAutoTranscript: string | null;
   jaTranslation: string | null;
   manualCorrectedTranscript: string | null;
+  manualSentenceCorrections?: SentenceCorrection[];
   rawTranscript: string;
   recordingId: string;
   segmentId: string;

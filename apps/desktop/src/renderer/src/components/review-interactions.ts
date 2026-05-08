@@ -1,6 +1,11 @@
-import type { RuleCandidateResolution, SentenceCue, SpeakerProfile } from "@eve/shared";
+import type {
+  RuleCandidateResolution,
+  SentenceCorrection,
+  SentenceCue,
+  SpeakerProfile
+} from "@eve/shared";
 
-export interface SentenceDraft {
+export interface SentenceDraft extends SentenceCorrection {
   cue: SentenceCue | null;
   id: string;
   text: string;
@@ -74,15 +79,31 @@ export function resolveCandidateUpdate({
 export function buildSentenceDrafts({
   cues,
   language,
+  manualCorrections,
   seedText
 }: {
   cues: SentenceCue[];
   language: string;
+  manualCorrections?: SentenceCorrection[];
   seedText: string;
 }): SentenceDraft[] {
   const normalizedSeed = seedText.trim();
   if (cues.length === 0) {
+    if (manualCorrections && manualCorrections.length > 0) {
+      return manualCorrections.map((correction, index) => ({
+        ...correction,
+        id: `draft:${correction.cue ? cueKey(correction.cue) : index}`
+      }));
+    }
     return normalizedSeed ? [{ cue: null, id: "draft:0", text: normalizedSeed }] : [];
+  }
+
+  if (manualCorrections && manualCorrections.length === cues.length) {
+    return manualCorrections.map((correction, index) => ({
+      cue: correction.cue ?? cues[index] ?? null,
+      id: `draft:${correction.cue ? cueKey(correction.cue) : index}`,
+      text: correction.text
+    }));
   }
 
   const splitSentences = splitTextIntoSentences(normalizedSeed, language);

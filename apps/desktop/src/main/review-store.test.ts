@@ -53,17 +53,47 @@ describe("ReviewStore", () => {
     const updated = await store.saveManualCorrection(
       directory,
       "segment-1",
-      "长句短句都有，这设计吧。"
+      "长句短句都有，这设计吧。",
+      [
+        {
+          cue: {
+            endMs: 3200,
+            startMs: 0,
+            text: "长劲短劲都有，这设计吧。"
+          },
+          text: "长句短句都有，这设计吧。"
+        }
+      ]
     );
 
     const payload = JSON.parse(await readFile(jsonPath, "utf8")) as {
       speech_segments: Array<Record<string, unknown>>;
     };
     expect(updated.manualCorrectedTranscript).toBe("长句短句都有，这设计吧。");
+    expect(updated.manualSentenceCorrections).toEqual([
+      {
+        cue: {
+          endMs: 3200,
+          startMs: 0,
+          text: "长劲短劲都有，这设计吧。"
+        },
+        text: "长句短句都有，这设计吧。"
+      }
+    ]);
     expect(updated.status).toBe("manually_corrected");
     expect(payload.speech_segments[0]?.manual_corrected_transcript).toBe(
       "长句短句都有，这设计吧。"
     );
+    expect(payload.speech_segments[0]?.manual_sentence_corrections).toEqual([
+      {
+        cue: {
+          end_ms: 3200,
+          start_ms: 0,
+          text: "长劲短劲都有，这设计吧。"
+        },
+        text: "长句短句都有，这设计吧。"
+      }
+    ]);
     expect(payload.speech_segments[0]?.status).toBe("manually_corrected");
   });
 

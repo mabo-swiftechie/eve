@@ -7,6 +7,7 @@ import {
   type DesktopSnapshot,
   type MicrophonePermissionStatus,
   type RecorderStatusSnapshot,
+  type SentenceCorrection,
   type SpeakerProfile
 } from "@eve/shared";
 import { useSyncExternalStore } from "react";
@@ -276,13 +277,19 @@ export const desktopActions = {
   async saveManualCorrection(
     recordingId: string,
     segmentId: string,
-    transcript: string
+    transcript: string,
+    sentenceCorrections?: SentenceCorrection[]
   ): Promise<void> {
     updateSnapshot(
       await withToast(
         createT(snapshot.settings.desktop.language)("errorSaveManualCorrectionFailed"),
         () =>
-          bridge?.saveManualCorrection(recordingId, segmentId, transcript) ??
+          bridge?.saveManualCorrection(
+            recordingId,
+            segmentId,
+            transcript,
+            sentenceCorrections
+          ) ??
           rejectBridgeCall()
       )
     );

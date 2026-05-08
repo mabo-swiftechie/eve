@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
-import { improveTranscript, type DesktopSnapshot, type SentenceCue } from "@eve/shared";
+import {
+  improveTranscript,
+  type DesktopSnapshot,
+  type SentenceCorrection,
+  type SentenceCue
+} from "@eve/shared";
 import { SpeakerProfilePanel } from "./speaker-profile-panel";
 import {
   buildSentenceDrafts,
@@ -19,7 +24,8 @@ export function ReviewLearn({
     saveManualCorrection: (
       recordingId: string,
       segmentId: string,
-      transcript: string
+      transcript: string,
+      sentenceCorrections?: SentenceCorrection[]
     ) => Promise<void>;
     updateSpeakerProfile: (
       profile: NonNullable<DesktopSnapshot["review"]["speakers"]>[number]
@@ -49,6 +55,7 @@ export function ReviewLearn({
       ? buildSentenceDrafts({
           cues: activeSegment.sentenceCues ?? [],
           language: activeSegment.detectedLanguage,
+          manualCorrections: activeSegment.manualSentenceCorrections,
           seedText: currentDraft
         })
       : []
@@ -76,6 +83,7 @@ export function ReviewLearn({
         ? buildSentenceDrafts({
             cues: activeSegment.sentenceCues ?? [],
             language: activeSegment.detectedLanguage,
+            manualCorrections: activeSegment.manualSentenceCorrections,
             seedText: nextDraft
           })
         : []
@@ -83,6 +91,7 @@ export function ReviewLearn({
   }, [
     currentDraft,
     activeSegment?.detectedLanguage,
+    activeSegment?.manualSentenceCorrections,
     activeSegment?.segmentId,
     activeSegment?.sentenceCues
   ]);
@@ -327,7 +336,8 @@ export function ReviewLearn({
                     void actions.saveManualCorrection(
                       snapshot.review.selectedRecordingId!,
                       activeSegment.segmentId,
-                      draftManual
+                      draftManual,
+                      sentenceDrafts.map(({ cue, text }) => ({ cue, text }))
                     )
                   }
                 >

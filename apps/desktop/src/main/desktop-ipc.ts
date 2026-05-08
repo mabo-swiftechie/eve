@@ -5,6 +5,7 @@ import type {
   DeviceInfo,
   MicrophonePermissionStatus,
   SegmentRecord,
+  SentenceCorrection,
   SpeakerProfile
 } from "@eve/shared";
 
@@ -37,7 +38,8 @@ interface RegisterDesktopIpcOptions {
   saveManualCorrection: (
     recordingId: string,
     segmentId: string,
-    transcript: string
+    transcript: string,
+    sentenceCorrections?: SentenceCorrection[]
   ) => Promise<SegmentRecord>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   updateDevices: (devices: DeviceInfo[]) => void;
@@ -144,8 +146,14 @@ export function registerDesktopIpcHandlers({
   );
   ipcMain.handle(
     "desktop:save-manual-correction",
-    async (_event, recordingId: string, segmentId: string, transcript: string) => {
-      await saveManualCorrection(recordingId, segmentId, transcript);
+    async (
+      _event,
+      recordingId: string,
+      segmentId: string,
+      transcript: string,
+      sentenceCorrections?: SentenceCorrection[]
+    ) => {
+      await saveManualCorrection(recordingId, segmentId, transcript, sentenceCorrections);
       return getSnapshot({ reviewRecordingId: recordingId });
     }
   );
