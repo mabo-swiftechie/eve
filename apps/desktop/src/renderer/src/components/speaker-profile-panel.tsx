@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { RuleCandidateResolution, SpeakerProfile } from "@eve/shared";
+import { resolveCandidateUpdate } from "./review-interactions";
 import { createT } from "../lib/i18n";
 
 export function SpeakerProfilePanel({
@@ -189,42 +190,20 @@ async function saveCandidateStatus({
   profile: SpeakerProfile;
 }) {
   const updatedAt = new Date().toISOString();
-  const nextProfile = profile.ruleCandidates.reduce(
-    (draft, candidate) => {
-      if (candidate.candidateId !== candidateId) {
-        draft.ruleCandidates.push(candidate);
-        return draft;
-      }
-
-      const nextCandidate = {
-        ...candidate,
-        confirmationMode,
-        status: nextStatus,
-        updatedAt
-      };
-      draft.ruleCandidates.push(nextCandidate);
-      if (nextStatus === "confirmed" && confirmationMode === "applied") {
-        if (candidate.language === "ja") {
-          draft.correctionLexiconJa[nextCandidate.fromText] = nextCandidate.toText;
-        } else if (candidate.language === "zh") {
-          draft.correctionLexiconZh[nextCandidate.fromText] = nextCandidate.toText;
-        }
-      }
-      return draft;
-    },
-    {
-      correctionLexiconJa: { ...profile.correctionLexiconJa },
-      correctionLexiconZh: { ...profile.correctionLexiconZh },
-      ruleCandidates: [] as SpeakerProfile["ruleCandidates"]
-    }
+  const decision =
+    nextStatus === "rejected"
+      ? "reject"
+      : confirmationMode === "applied"
+        ? "apply"
+        : "record";
+  await actions.updateSpeakerProfile(
+    resolveCandidateUpdate({
+      candidateId,
+      decision,
+      profile,
+      updatedAt
+    })
   );
-  await actions.updateSpeakerProfile({
-    ...profile,
-    correctionLexiconJa: nextProfile.correctionLexiconJa,
-    correctionLexiconZh: nextProfile.correctionLexiconZh,
-    ruleCandidates: nextProfile.ruleCandidates,
-    updatedAt
-  });
 }
 
 function describeCandidateStatus(

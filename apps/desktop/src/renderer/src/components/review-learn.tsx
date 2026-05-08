@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { improveTranscript, type DesktopSnapshot, type SentenceCue } from "@eve/shared";
 import { SpeakerProfilePanel } from "./speaker-profile-panel";
+import { cueKey, getCueAtTime } from "./review-interactions";
 import { createT } from "../lib/i18n";
 
 export function ReviewLearn({
@@ -205,10 +206,10 @@ export function ReviewLearn({
                       if (!currentAudio) {
                         return;
                       }
-                      const currentCue = cueList.find((cue) => {
-                        const timeMs = Math.round(currentAudio.currentTime * 1000);
-                        return timeMs >= cue.startMs && timeMs <= cue.endMs;
-                      });
+                      const currentCue = getCueAtTime(
+                        cueList,
+                        Math.round(currentAudio.currentTime * 1000)
+                      );
                       setActiveCueKey(currentCue ? cueKey(currentCue) : null);
                     }}
                   />
@@ -315,10 +316,6 @@ export function ReviewLearn({
     setPendingCue(cue);
     await loadAudio();
   }
-}
-
-function cueKey(cue: SentenceCue): string {
-  return `${cue.startMs}:${cue.endMs}:${cue.text}`;
 }
 
 async function playCue(
