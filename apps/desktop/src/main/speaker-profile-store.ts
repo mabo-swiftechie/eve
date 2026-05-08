@@ -18,6 +18,23 @@ export class SpeakerProfileStore {
     return profiles[speakerId] ?? null;
   }
 
+  async findProfileByName(name: string): Promise<SpeakerProfile | null> {
+    const observedName = name.trim();
+    if (!observedName) {
+      return null;
+    }
+    const profiles = await this.readProfiles();
+    return (
+      Object.values(profiles).find((profile) => {
+        return (
+          profile.displayName === observedName ||
+          profile.aliases.includes(observedName) ||
+          profile.speakerId === observedName
+        );
+      }) ?? null
+    );
+  }
+
   async saveProfile(profile: SpeakerProfile): Promise<SpeakerProfile> {
     const profiles = await this.readProfiles();
     profiles[profile.speakerId] = profile;

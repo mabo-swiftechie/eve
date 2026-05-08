@@ -55,6 +55,15 @@ describe("SpeakerProfileStore", () => {
     const raw = JSON.parse(await readFile(path, "utf8")) as Record<string, SpeakerProfile>;
     expect(raw[profile.speakerId]).toEqual(profile);
   });
+
+  it("finds a profile by display name or alias", async () => {
+    const store = new SpeakerProfileStore(await createStorePath());
+    const profile = createProfile({ aliases: ["晋哥"] });
+    await store.saveProfile(profile);
+
+    await expect(store.findProfileByName("王晋")).resolves.toEqual(profile);
+    await expect(store.findProfileByName("晋哥")).resolves.toEqual(profile);
+  });
 });
 
 async function createStorePath(): Promise<string> {

@@ -40,7 +40,7 @@ type StatusListener = (status: RecorderStatusSnapshot) => void;
 interface DesktopEngineDependencies {
   improveTranscript?: typeof defaultImproveTranscript;
   segmentTranslator?: SegmentTranslator;
-  speakerProfileStore?: Pick<SpeakerProfileStore, "getProfile">;
+  speakerProfileStore?: Pick<SpeakerProfileStore, "findProfileByName" | "getProfile">;
 }
 
 const HISTORY_LIMIT = 5;
@@ -57,7 +57,7 @@ export class DesktopEngine {
   private readonly pendingAudioChunks: AudioChunkPayload[] = [];
   private readonly queueIdleWaiters = new Set<() => void>();
   private readonly segmentTranslator: SegmentTranslator;
-  private readonly speakerProfileStore: Pick<SpeakerProfileStore, "getProfile">;
+  private readonly speakerProfileStore: Pick<SpeakerProfileStore, "findProfileByName" | "getProfile">;
   private devices: DeviceInfo[] = [];
   private settings: AppSettings = DEFAULT_SETTINGS;
   private status: RecorderStatusSnapshot = {
@@ -337,10 +337,11 @@ export class DesktopEngine {
           confidence = match.confidence;
         }
       }
-      const speakerId = speaker ? `speaker:${speaker}` : null;
-      const speakerProfile = speakerId
-        ? await this.speakerProfileStore.getProfile(speakerId)
+      const speakerProfile = speaker
+        ? await this.speakerProfileStore.findProfileByName(speaker)
         : null;
+      const speakerId = speakerProfile?.speakerId ?? "speaker:unknown";
+      const speakerDisplayName = speakerProfile?.displayName ?? speaker ?? "Speaker A";
       const detectedLanguage = normalizeLanguage(result.lang);
       const improvedAutoTranscript = this.improveTranscript(text, detectedLanguage, speakerProfile);
       const jaTranslation =
@@ -354,7 +355,8 @@ export class DesktopEngine {
         rawTranscript: text,
         recordingId: this.segment.recordingId,
         speaker,
-        speakerProfile,
+        speakerDisplayName,
+        speakerId,
         startOffsetMs: vadSegment.start,
         startedAt: this.segment.startedAt,
         vadSampleCount: vadSegment.samples.length
