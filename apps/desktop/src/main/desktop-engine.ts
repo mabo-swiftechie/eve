@@ -1,7 +1,16 @@
+import { randomUUID } from "node:crypto";
 import { mkdir, readdir, rm, stat } from "node:fs/promises";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import log from "electron-log/main";
-import { DEFAULT_SETTINGS, DEFAULT_STATUS, type AppSettings, type DeviceInfo, type RecorderStatusSnapshot } from "@eve/shared";
+import {
+  DEFAULT_SETTINGS,
+  DEFAULT_STATUS,
+  type AppSettings,
+  type DeviceInfo,
+  type RecorderStatusSnapshot,
+  type SegmentRecord,
+  type SpeakerProfile
+} from "@eve/shared";
 import {
   WavWriter,
   buildWaveformBins,
@@ -17,6 +26,13 @@ import {
   writeJsonAtomic
 } from "./audio-utils";
 import { ModelManager } from "./model-manager";
+import { SpeakerIdentifier, getDefaultSpeakerRegistryPath } from "./speaker-identifier";
+import { improveTranscript as defaultImproveTranscript } from "./segment-enhancer";
+import {
+  PassthroughSegmentTranslator,
+  type SegmentTranslator
+} from "./segment-translator";
+import { SpeakerProfileStore } from "./speaker-profile-store";
 
 interface AudioChunkPayload {
   deviceId: string;
@@ -26,18 +42,42 @@ interface AudioChunkPayload {
   samples: Float32Array;
 }
 
+interface SpeechSegment {
+  confidence: number | null;
+  detectedLanguage: string;
+  improvedAutoTranscript: string | null;
+  jaTranslation: string | null;
+  manualCorrectedTranscript: string | null;
+  rawTranscript: string;
+  recordingId: string;
+  segmentId: string;
+  speaker: string | null;
+  speakerDisplayName: string;
+  speakerId: string | null;
+  startAt: string;
+  status: SegmentRecord["status"];
+  text: string;
+}
+
 interface RecordingSegment {
   audioPath: string;
   createdAt: string;
   deviceLabel: string;
   jsonPath: string | null;
   startedAt: Date;
+  speechSegments: SpeechSegment[];
   texts: string[];
   wavPath: string;
   writer: WavWriter;
 }
 
 type StatusListener = (status: RecorderStatusSnapshot) => void;
+
+interface DesktopEngineDependencies {
+  improveTranscript?: typeof defaultImproveTranscript;
+  segmentTranslator?: SegmentTranslator;
+  speakerProfileStore?: Pick<SpeakerProfileStore, "getProfile">;
+}
 
 const HISTORY_LIMIT = 5;
 const AUDIO_EXTENSIONS = new Set([".flac", ".wav"]);
@@ -48,10 +88,13 @@ const DIAGNOSTIC_LOG_INTERVAL_MS = 15_000;
 const TRANSCRIBE_LIMIT = 0;
 
 export class DesktopEngine {
+  private readonly improveTranscript: typeof defaultImproveTranscript;
   private readonly modelManager = new ModelManager();
   private readonly onStatus: StatusListener;
   private readonly pendingAudioChunks: AudioChunkPayload[] = [];
   private readonly queueIdleWaiters = new Set<() => void>();
+  private readonly segmentTranslator: SegmentTranslator;
+  private readonly speakerProfileStore: Pick<SpeakerProfileStore, "getProfile">;
   private devices: DeviceInfo[] = [];
   private settings: AppSettings = DEFAULT_SETTINGS;
   private status: RecorderStatusSnapshot = {
@@ -67,9 +110,20 @@ export class DesktopEngine {
   private lastDiagnosticLogAt = 0;
   private vad: ReturnType<typeof createSherpaVad> | null = null;
   private vadRemainder = new Float32Array(0);
+  private speakerIdentifier: SpeakerIdentifier | null = null;
 
-  constructor(onStatus: StatusListener) {
+  constructor(
+    onStatus: StatusListener,
+    {
+      improveTranscript = defaultImproveTranscript,
+      segmentTranslator = new PassthroughSegmentTranslator(),
+      speakerProfileStore = new SpeakerProfileStore()
+    }: DesktopEngineDependencies = {}
+  ) {
     this.onStatus = onStatus;
+    this.improveTranscript = improveTranscript;
+    this.segmentTranslator = segmentTranslator;
+    this.speakerProfileStore = speakerProfileStore;
     this.modelManager.onStatus((assetStatus) => this.patchStatus(assetStatus));
   }
 
@@ -155,6 +209,18 @@ export class DesktopEngine {
     this.asrBackpressureActive = false;
     this.lastDiagnosticLogAt = 0;
     this.recordingStartedAt = Date.now();
+
+    // Initialize speaker identification if model is available
+    if (this.status.speakerEmbeddingReady) {
+      this.speakerIdentifier = new SpeakerIdentifier(this.modelManager.getSpeakerEmbeddingModelPath());
+      const ok = this.speakerIdentifier.initialize();
+      if (ok) {
+        await this.speakerIdentifier.loadSpeakerRegistry(getDefaultSpeakerRegistryPath());
+      } else {
+        this.speakerIdentifier = null;
+      }
+    }
+
     this.segment = await this.openSegment();
     this.logDiagnostics("recording-started");
     this.patchStatus({
@@ -179,6 +245,7 @@ export class DesktopEngine {
     this.vad = null;
     this.vadRemainder = new Float32Array(0);
     this.pendingAudioChunks.length = 0;
+    this.speakerIdentifier = null;
     this.segment = null;
     this.recordingStartedAt = 0;
     this.logDiagnostics("recording-stopped", { force: true });
@@ -383,14 +450,66 @@ export class DesktopEngine {
       if (!text) {
         continue;
       }
+
+      // Speaker identification
+      let speaker: string | null = null;
+      let confidence: number | null = null;
+      if (this.speakerIdentifier?.isInitialized) {
+        const match = this.speakerIdentifier.identify(vadSegment.samples, 0.5);
+        if (match) {
+          speaker = match.name;
+          confidence = match.confidence;
+        }
+      }
+      const speakerId = speaker ? `speaker:${speaker}` : null;
+      const speakerProfile = speakerId
+        ? await this.speakerProfileStore.getProfile(speakerId)
+        : null;
+      const detectedLanguage = normalizeLanguage(result.lang);
+      const improvedAutoTranscript = this.improveTranscript(
+        text,
+        detectedLanguage,
+        speakerProfile
+      );
+      const jaTranslation =
+        detectedLanguage === "zh"
+          ? await this.segmentTranslator.translateChineseToJapanese(
+              improvedAutoTranscript
+            )
+          : null;
+      const speakerDisplayName = getSpeakerDisplayName(speaker, speakerProfile);
+      const status: SegmentRecord["status"] = jaTranslation
+        ? "translation_ready"
+        : "auto_improved";
+
       const history = this.status.asrPreview
         ? [this.status.asrPreview, ...this.status.asrHistory]
         : [...this.status.asrHistory];
       this.segment.texts.push(text);
+      this.segment.speechSegments.push({
+        confidence,
+        detectedLanguage,
+        improvedAutoTranscript,
+        jaTranslation,
+        manualCorrectedTranscript: null,
+        rawTranscript: text,
+        recordingId: this.segment.audioPath,
+        segmentId: randomUUID(),
+        speaker,
+        speakerDisplayName,
+        speakerId,
+        startAt: new Date(
+          this.segment.startedAt.getTime() + vadSegment.start
+        ).toISOString(),
+        status,
+        text
+      });
       this.patchStatus({
         asrHistory: history.slice(0, HISTORY_LIMIT),
         asrPreview: text,
-        statusMessage: "Speech recognized."
+        statusMessage: speakerDisplayName
+          ? `Speech recognized (${speakerDisplayName}).`
+          : "Speech recognized."
       });
     }
   }
@@ -443,6 +562,7 @@ export class DesktopEngine {
         ? null
         : join(outputDirectory, `${baseName}.json`),
       startedAt: now,
+      speechSegments: [],
       texts: [],
       wavPath,
       writer: new WavWriter(wavPath)
@@ -465,7 +585,8 @@ export class DesktopEngine {
     if (!current.jsonPath) {
       return;
     }
-    await writeJsonAtomic(current.jsonPath, {
+
+    const payload: Record<string, unknown> = {
       audio_file: basename(finalAudioPath),
       audio_path: finalAudioPath,
       backend: "sherpa-onnx",
@@ -475,7 +596,28 @@ export class DesktopEngine {
       segment_start_time: current.startedAt.toISOString(),
       status: "ok",
       text: current.texts.join(" ").trim()
-    });
+    };
+
+    if (current.speechSegments.length > 0) {
+      payload.speech_segments = current.speechSegments.map((seg) => ({
+        confidence: seg.confidence,
+        detected_language: seg.detectedLanguage,
+        improved_auto_transcript: seg.improvedAutoTranscript,
+        ja_translation: seg.jaTranslation,
+        manual_corrected_transcript: seg.manualCorrectedTranscript,
+        raw_transcript: seg.rawTranscript,
+        recording_id: seg.recordingId,
+        segment_id: seg.segmentId,
+        speaker: seg.speaker,
+        speaker_display_name: seg.speakerDisplayName,
+        speaker_id: seg.speakerId,
+        start_at: seg.startAt,
+        status: seg.status,
+        text: seg.text
+      }));
+    }
+
+    await writeJsonAtomic(current.jsonPath, payload);
   }
 
   private shouldThrottleAsr(): boolean {
@@ -537,3 +679,21 @@ export class DesktopEngine {
     );
   }
 }
+
+const normalizeLanguage = (value: string | null | undefined): string => {
+  if (!value) {
+    return "unknown";
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized.length > 0 ? normalized : "unknown";
+};
+
+const getSpeakerDisplayName = (
+  speaker: string | null,
+  speakerProfile: SpeakerProfile | null
+): string => {
+  if (speakerProfile?.displayName) {
+    return speakerProfile.displayName;
+  }
+  return speaker ?? "Speaker A";
+};
