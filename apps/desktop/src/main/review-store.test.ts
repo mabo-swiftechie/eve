@@ -125,6 +125,92 @@ describe("ReviewStore", () => {
     );
   });
 
+  it("derives sentence-level candidates from structured corrections", async () => {
+    const store = new ReviewStore();
+    const candidates = await store.deriveCandidates({
+      audioClipRef: "/tmp/segment.wav",
+      detectedLanguage: "zh",
+      endAt: "2026-05-08T11:00:05.000Z",
+      improvedAutoTranscript: "长劲短劲都有。这个设计吧。",
+      jaTranslation: null,
+      manualCorrectedTranscript: "长句短句都有。这个设计吧。",
+      manualSentenceCorrections: [
+        {
+          cue: {
+            endMs: 1200,
+            startMs: 0,
+            text: "长劲短劲都有。"
+          },
+          text: "长句短句都有。"
+        },
+        {
+          cue: {
+            endMs: 2400,
+            startMs: 1201,
+            text: "这个设计吧。"
+          },
+          text: "这个设计吧。"
+        }
+      ],
+      rawTranscript: "长劲短劲都有。这个设计吧。",
+      recordingId: "recording-1",
+      segmentId: "segment-1",
+      sentenceCues: [
+        {
+          endMs: 1200,
+          startMs: 0,
+          text: "长劲短劲都有。"
+        },
+        {
+          endMs: 2400,
+          startMs: 1201,
+          text: "这个设计吧。"
+        }
+      ],
+      speakerDisplayName: "王晋",
+      speakerId: "speaker-wj",
+      startAt: "2026-05-08T11:00:00.000Z",
+      status: "manually_corrected"
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toEqual(
+      expect.objectContaining({
+        candidateId: "segment-1:manual:0",
+        fromText: "长劲短劲都有。",
+        toText: "长句短句都有。"
+      })
+    );
+  });
+
+  it("falls back to segment candidates without sentence corrections", async () => {
+    const store = new ReviewStore();
+    const candidates = await store.deriveCandidates({
+      audioClipRef: "/tmp/segment.wav",
+      detectedLanguage: "ja",
+      endAt: "2026-05-08T11:00:05.000Z",
+      improvedAutoTranscript: "これは設計ですね",
+      jaTranslation: null,
+      manualCorrectedTranscript: "これは設計ですね。",
+      rawTranscript: "これは設計ですね",
+      recordingId: "recording-1",
+      segmentId: "segment-2",
+      speakerDisplayName: "曲boss",
+      speakerId: "speaker-q",
+      startAt: "2026-05-08T11:00:00.000Z",
+      status: "manually_corrected"
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toEqual(
+      expect.objectContaining({
+        candidateId: "segment-2:manual",
+        fromText: "これは設計ですね",
+        toText: "これは設計ですね。"
+      })
+    );
+  });
+
   it("loads segment audio as a data url", async () => {
     const directory = await createReviewDirectory();
     const audioPath = join(directory, "eve_20260508_110000.wav");

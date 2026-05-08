@@ -39,24 +39,18 @@ const isObject = (value: unknown): value is Record<string, unknown> => {
 
 export class ReviewStore {
   async deriveCandidates(segment: SegmentRecord): Promise<RuleCandidate[]> {
+    const sentenceCandidates = deriveSentenceCandidates(segment);
+    if (sentenceCandidates.length > 0) {
+      return sentenceCandidates;
+    }
+
     const manual = segment.manualCorrectedTranscript?.trim() ?? "";
     const automatic = (segment.improvedAutoTranscript ?? segment.rawTranscript).trim();
     if (!manual || manual === automatic) {
       return [];
     }
-    return [
-      {
-        candidateId: `${segment.segmentId}:manual`,
-        createdAt: new Date().toISOString(),
-        fromText: automatic,
-        language: segment.detectedLanguage,
-        segmentId: segment.segmentId,
-        speakerId: segment.speakerId ?? "unassigned",
-        status: "pending",
-        toText: manual,
-        updatedAt: new Date().toISOString()
-      }
-    ];
+
+    return [buildCandidate(segment, manual, automatic)];
   }
 
   async listSegments(recordingDirectory: string): Promise<SegmentRecord[]> {
@@ -286,6 +280,67 @@ function serializeSentenceCorrections(
       : null,
     text: correction.text
   }));
+}
+
+function deriveSentenceCandidates(segment: SegmentRecord): RuleCandidate[] {
+  const manualCorrections = segment.manualSentenceCorrections;
+  if (!manualCorrections || manualCorrections.length === 0) {
+    return [];
+  }
+
+  const baseSentences = getBaseSentenceTexts(segment);
+  return manualCorrections.flatMap((correction, index) => {
+    const manual = correction.text.trim();
+    const automatic = (
+      correction.cue?.text ??
+      baseSentences[index] ??
+      ""
+    ).trim();
+    if (!manual || !automatic || manual === automatic) {
+      return [];
+    }
+    return [buildCandidate(segment, manual, automatic, index)];
+  });
+}
+
+function getBaseSentenceTexts(segment: SegmentRecord): string[] {
+  if (segment.sentenceCues && segment.sentenceCues.length > 0) {
+    return segment.sentenceCues.map((cue) => cue.text.trim());
+  }
+  return splitSentences(segment.improvedAutoTranscript ?? segment.rawTranscript);
+}
+
+function splitSentences(transcript: string): string[] {
+  const normalized = transcript.trim();
+  if (!normalized) {
+    return [];
+  }
+  const matches = normalized.match(/[^。！？!?]+[。！？!?]?/gu) ?? [];
+  const sentences = matches.map((part) => part.trim()).filter(Boolean);
+  return sentences.length > 0 ? sentences : [normalized];
+}
+
+function buildCandidate(
+  segment: SegmentRecord,
+  manual: string,
+  automatic: string,
+  sentenceIndex?: number
+): RuleCandidate {
+  const timestamp = new Date().toISOString();
+  return {
+    candidateId:
+      sentenceIndex === undefined
+        ? `${segment.segmentId}:manual`
+        : `${segment.segmentId}:manual:${sentenceIndex}`,
+    createdAt: timestamp,
+    fromText: automatic,
+    language: segment.detectedLanguage,
+    segmentId: segment.segmentId,
+    speakerId: segment.speakerId ?? "unassigned",
+    status: "pending",
+    toText: manual,
+    updatedAt: timestamp
+  };
 }
 
 function toNumber(value: unknown): number | null {
