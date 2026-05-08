@@ -21,6 +21,7 @@ export interface RecordingSegment {
   createdAt: string;
   deviceLabel: string;
   jsonPath: string | null;
+  recordingId: string;
   speechSegments: EnrichedSegmentRecord[];
   startedAt: Date;
   texts: string[];
@@ -65,6 +66,7 @@ export async function createRecordingSegment({
     createdAt: now.toISOString(),
     deviceLabel,
     jsonPath: disableAsr ? null : join(outputDirectory, `${baseName}.json`),
+    recordingId: baseName,
     speechSegments: [],
     startedAt: now,
     texts: [],
@@ -174,7 +176,7 @@ function serializeSegmentRecord(
     ja_translation: segment.jaTranslation,
     manual_corrected_transcript: segment.manualCorrectedTranscript,
     raw_transcript: segment.rawTranscript,
-    recording_id: finalAudioPath,
+    recording_id: segment.recordingId,
     segment_id: segment.segmentId,
     speaker: segment.speaker,
     speaker_display_name: segment.speakerDisplayName,

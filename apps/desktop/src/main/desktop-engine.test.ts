@@ -262,6 +262,7 @@ describe("DesktopEngine", () => {
         detected_language: "zh",
         end_at: expect.any(String),
         raw_transcript: "长劲短劲都有，Qwen3 也有。",
+        recording_id: expect.stringMatching(/^eve_\d{8}_\d{6}$/),
         improved_auto_transcript: "improved:长劲短劲都有，Qwen3 也有。",
         ja_translation: "ja:improved:长劲短劲都有，Qwen3 也有。",
         speaker: "王晋",
