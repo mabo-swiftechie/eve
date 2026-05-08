@@ -1,4 +1,5 @@
 import type {
+  RuleCandidate,
   RuleCandidateResolution,
   SentenceCorrection,
   SentenceCue,
@@ -128,6 +129,30 @@ export function composeSentenceDrafts({
     return parts.join("");
   }
   return parts.join(" ");
+}
+
+export function findSentenceDraftIdForCandidate({
+  candidate,
+  drafts
+}: {
+  candidate: RuleCandidate;
+  drafts: SentenceDraft[];
+}): string | null {
+  if (candidate.sentenceCue) {
+    const match = drafts.find((draft) => {
+      return (
+        draft.cue !== null &&
+        cueKey(draft.cue) === cueKey(candidate.sentenceCue!)
+      );
+    });
+    if (match) {
+      return match.id;
+    }
+  }
+  if (candidate.sentenceIndex === undefined) {
+    return null;
+  }
+  return drafts[candidate.sentenceIndex]?.id ?? null;
 }
 
 function splitTextIntoSentences(input: string, language: string): string[] {

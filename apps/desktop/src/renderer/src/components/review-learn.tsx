@@ -10,6 +10,7 @@ import {
   buildSentenceDrafts,
   composeSentenceDrafts,
   cueKey,
+  findSentenceDraftIdForCandidate,
   getCueAtTime,
   type SentenceDraft
 } from "./review-interactions";
@@ -50,6 +51,12 @@ export function ReviewLearn({
   const [audioMissing, setAudioMissing] = useState(false);
   const [activeCueKey, setActiveCueKey] = useState<string | null>(null);
   const [pendingCue, setPendingCue] = useState<SentenceCue | null>(null);
+  const [pendingCandidateFocus, setPendingCandidateFocus] = useState<{
+    cue: SentenceCue | null;
+    segmentId: string;
+    sentenceIndex?: number;
+  } | null>(null);
+  const [focusedSentenceDraftId, setFocusedSentenceDraftId] = useState<string | null>(null);
   const [sentenceDrafts, setSentenceDrafts] = useState<SentenceDraft[]>(
     activeSegment
       ? buildSentenceDrafts({
@@ -61,6 +68,7 @@ export function ReviewLearn({
       : []
   );
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sentenceDraftRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const pauseTimerRef = useRef<number | null>(null);
   const activeSpeaker =
     snapshot.review.speakers.find((speaker) => speaker.speakerId === activeSegment?.speakerId) ??
@@ -101,6 +109,7 @@ export function ReviewLearn({
     setAudioLoading(false);
     setAudioMissing(false);
     setActiveCueKey(null);
+    setFocusedSentenceDraftId(null);
     setPendingCue(null);
   }, [activeSegment?.segmentId]);
 
@@ -111,6 +120,43 @@ export function ReviewLearn({
     void playCue(audioRef.current, pendingCue, pauseTimerRef);
     setPendingCue(null);
   }, [audioDataUrl, pendingCue]);
+
+  useEffect(() => {
+    if (!pendingCandidateFocus || !activeSegment) {
+      return;
+    }
+    if (pendingCandidateFocus.segmentId !== activeSegment.segmentId) {
+      return;
+    }
+
+    if (pendingCandidateFocus.cue) {
+      setActiveCueKey(cueKey(pendingCandidateFocus.cue));
+    }
+
+    const draftId = findSentenceDraftIdForCandidate({
+      candidate: {
+        candidateId: "pending-focus",
+        createdAt: "",
+        fromText: "",
+        language: activeSegment.detectedLanguage,
+        segmentId: pendingCandidateFocus.segmentId,
+        sentenceCue: pendingCandidateFocus.cue,
+        sentenceIndex: pendingCandidateFocus.sentenceIndex,
+        speakerId: activeSegment.speakerId ?? "unassigned",
+        status: "pending",
+        toText: "",
+        updatedAt: ""
+      },
+      drafts: sentenceDrafts
+    });
+    if (!draftId) {
+      return;
+    }
+
+    setFocusedSentenceDraftId(draftId);
+    sentenceDraftRefs.current[draftId]?.focus();
+    setPendingCandidateFocus(null);
+  }, [activeSegment, pendingCandidateFocus, sentenceDrafts]);
 
   useEffect(() => {
     return () => {
@@ -299,8 +345,17 @@ export function ReviewLearn({
                           {draft.cue ? formatCueTime(draft.cue.startMs) : `${index + 1}`}
                         </span>
                         <textarea
-                          className="min-h-20 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm leading-6 text-[color:var(--foreground)] outline-none focus:border-[color:var(--ring)] focus:ring-1 focus:ring-[color:var(--ring)]"
+                          ref={(node) => {
+                            sentenceDraftRefs.current[draft.id] = node;
+                          }}
+                          aria-label={`sentence-draft-${index + 1}`}
+                          className={
+                            focusedSentenceDraftId === draft.id
+                              ? "min-h-20 w-full rounded-lg border border-[color:var(--ring)] bg-[color:var(--surface)] px-3 py-2 text-sm leading-6 text-[color:var(--foreground)] outline-none ring-1 ring-[color:var(--ring)] focus:border-[color:var(--ring)] focus:ring-1 focus:ring-[color:var(--ring)]"
+                              : "min-h-20 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm leading-6 text-[color:var(--foreground)] outline-none focus:border-[color:var(--ring)] focus:ring-1 focus:ring-[color:var(--ring)]"
+                          }
                           value={draft.text}
+                          onFocus={() => setFocusedSentenceDraftId(draft.id)}
                           onChange={(event) => {
                             if (!activeSegment) {
                               return;
@@ -355,6 +410,14 @@ export function ReviewLearn({
         <SpeakerProfilePanel
           actions={{ updateSpeakerProfile: actions.updateSpeakerProfile }}
           language={snapshot.settings.desktop.language}
+          onLocateCandidate={(candidate) => {
+            setSelectedSegmentId(candidate.segmentId);
+            setPendingCandidateFocus({
+              cue: candidate.sentenceCue ?? null,
+              segmentId: candidate.segmentId,
+              sentenceIndex: candidate.sentenceIndex
+            });
+          }}
           profile={activeSpeaker}
         />
       </div>

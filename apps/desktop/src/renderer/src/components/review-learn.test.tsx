@@ -34,6 +34,7 @@ describe("ReviewLearn", () => {
     expect(markup).toContain("Review candidates");
     expect(markup).toContain("Sentence 1");
     expect(markup).toContain("0.0s–2.2s");
+    expect(markup).toContain("Locate");
     expect(markup).toContain("Apply");
     expect(markup).toContain("Keep note");
   });

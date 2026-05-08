@@ -6,12 +6,14 @@ import { createT } from "../lib/i18n";
 export function SpeakerProfilePanel({
   actions,
   language,
+  onLocateCandidate,
   profile
 }: {
   actions: {
     updateSpeakerProfile: (profile: SpeakerProfile) => Promise<void>;
   };
   language: "en-US" | "system" | "zh-CN";
+  onLocateCandidate?: (candidate: SpeakerProfile["ruleCandidates"][number]) => void;
   profile: SpeakerProfile | null;
 }) {
   const t = createT(language);
@@ -105,6 +107,11 @@ export function SpeakerProfilePanel({
                   <p className="mt-1 text-[color:var(--foreground)]">{candidate.toText}</p>
                   <div className="mt-3 flex gap-2">
                     <CandidateButton
+                      disabled={!candidate.sentenceCue}
+                      label={t("reviewSpeakerLocateCandidate")}
+                      onClick={() => onLocateCandidate?.(candidate)}
+                    />
+                    <CandidateButton
                       label={t("reviewSpeakerApplyCandidate")}
                       onClick={() =>
                         void saveCandidateStatus({
@@ -165,15 +172,22 @@ export function SpeakerProfilePanel({
 }
 
 function CandidateButton({
+  disabled = false,
   label,
   onClick
 }: {
+  disabled?: boolean;
   label: string;
   onClick: () => void;
 }) {
   return (
     <button
-      className="inline-flex h-7 items-center justify-center rounded-lg bg-[color:var(--panel)] px-2.5 text-[11px] font-medium text-[color:var(--foreground)] ring-1 ring-[color:var(--border)]"
+      className={
+        disabled
+          ? "inline-flex h-7 items-center justify-center rounded-lg bg-[color:var(--panel)] px-2.5 text-[11px] font-medium text-[color:var(--muted)] ring-1 ring-[color:var(--border)] opacity-60"
+          : "inline-flex h-7 items-center justify-center rounded-lg bg-[color:var(--panel)] px-2.5 text-[11px] font-medium text-[color:var(--foreground)] ring-1 ring-[color:var(--border)]"
+      }
+      disabled={disabled}
       type="button"
       onClick={onClick}
     >

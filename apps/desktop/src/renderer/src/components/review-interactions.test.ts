@@ -4,6 +4,7 @@ import {
   buildSentenceDrafts,
   composeSentenceDrafts,
   cueKey,
+  findSentenceDraftIdForCandidate,
   getCueAtTime,
   resolveCandidateUpdate
 } from "./review-interactions";
@@ -83,6 +84,40 @@ describe("review interactions", () => {
     });
 
     expect(drafts.map((draft) => draft.text)).toEqual(["人工第一句。", "人工第二句。"]);
+  });
+
+  it("finds the matching sentence draft for a candidate cue", () => {
+    const drafts = buildSentenceDrafts({
+      cues: [
+        { endMs: 1200, startMs: 0, text: "长劲短劲都有。" },
+        { endMs: 2400, startMs: 1201, text: "这个设计吧。" }
+      ],
+      language: "zh",
+      seedText: "长句短句都有。这个设计吧。"
+    });
+
+    const draftId = findSentenceDraftIdForCandidate({
+      candidate: {
+        candidateId: "candidate-1",
+        createdAt: "2026-05-08T11:05:00.000Z",
+        fromText: "长劲短劲都有。",
+        language: "zh",
+        segmentId: "segment-1",
+        sentenceCue: {
+          endMs: 1200,
+          startMs: 0,
+          text: "长劲短劲都有。"
+        },
+        sentenceIndex: 0,
+        speakerId: "speaker-wj",
+        status: "pending",
+        toText: "长句短句都有。",
+        updatedAt: "2026-05-08T11:05:00.000Z"
+      },
+      drafts
+    });
+
+    expect(draftId).toBe(drafts[0]?.id);
   });
 
   it("composes sentence drafts back into one zh transcript", () => {
