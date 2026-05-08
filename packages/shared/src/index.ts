@@ -203,9 +203,9 @@ export interface DesktopSnapshot {
   devices: DeviceInfo[];
   engineReady: boolean;
   history: RecordingHistoryItem[];
-  liveStage: LiveStageSnapshot;
+  liveStage?: LiveStageSnapshot;
   permission: MicrophonePermissionStatus;
-  review: ReviewSegmentSnapshot;
+  review?: ReviewSegmentSnapshot;
   settings: AppSettings;
   status: RecorderStatusSnapshot;
   updater: AutoUpdateSnapshot;
