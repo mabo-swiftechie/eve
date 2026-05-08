@@ -12,6 +12,12 @@ export interface SentenceDraft extends SentenceCorrection {
   text: string;
 }
 
+export interface PendingCandidateFocus {
+  cue: SentenceCue | null;
+  segmentId: string;
+  sentenceIndex?: number;
+}
+
 export function cueKey(cue: SentenceCue): string {
   return `${cue.startMs}:${cue.endMs}:${cue.text}`;
 }
@@ -153,6 +159,41 @@ export function findSentenceDraftIdForCandidate({
     return null;
   }
   return drafts[candidate.sentenceIndex]?.id ?? null;
+}
+
+export function resolveCandidateFocusState({
+  drafts,
+  focus
+}: {
+  drafts: SentenceDraft[];
+  focus: PendingCandidateFocus;
+}): {
+  activeCueKey: string | null;
+  cueToPlay: SentenceCue | null;
+  draftId: string | null;
+} {
+  const activeCueKey = focus.cue ? cueKey(focus.cue) : null;
+  const draftId = findSentenceDraftIdForCandidate({
+    candidate: {
+      candidateId: "pending-focus",
+      createdAt: "",
+      fromText: "",
+      language: "unknown",
+      segmentId: focus.segmentId,
+      sentenceCue: focus.cue,
+      sentenceIndex: focus.sentenceIndex,
+      speakerId: "unassigned",
+      status: "pending",
+      toText: "",
+      updatedAt: ""
+    },
+    drafts
+  });
+  return {
+    activeCueKey,
+    cueToPlay: focus.cue,
+    draftId
+  };
 }
 
 function splitTextIntoSentences(input: string, language: string): string[] {

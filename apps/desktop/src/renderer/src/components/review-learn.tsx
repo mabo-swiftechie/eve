@@ -12,7 +12,8 @@ import {
   buildSentenceDrafts,
   composeSentenceDrafts,
   cueKey,
-  findSentenceDraftIdForCandidate,
+  resolveCandidateFocusState,
+  type PendingCandidateFocus,
   type SentenceDraft
 } from "./review-interactions";
 import { createT } from "../lib/i18n";
@@ -52,11 +53,9 @@ export function ReviewLearn({
   const [audioMissing, setAudioMissing] = useState(false);
   const [activeCueKey, setActiveCueKey] = useState<string | null>(null);
   const [pendingCue, setPendingCue] = useState<SentenceCue | null>(null);
-  const [pendingCandidateFocus, setPendingCandidateFocus] = useState<{
-    cue: SentenceCue | null;
-    segmentId: string;
-    sentenceIndex?: number;
-  } | null>(null);
+  const [pendingCandidateFocus, setPendingCandidateFocus] = useState<PendingCandidateFocus | null>(
+    null
+  );
   const [focusedSentenceDraftId, setFocusedSentenceDraftId] = useState<string | null>(null);
   const [sentenceDrafts, setSentenceDrafts] = useState<SentenceDraft[]>(
     activeSegment
@@ -130,36 +129,22 @@ export function ReviewLearn({
       return;
     }
 
-    if (pendingCandidateFocus.cue) {
-      setActiveCueKey(cueKey(pendingCandidateFocus.cue));
-    }
-
-    const draftId = findSentenceDraftIdForCandidate({
-      candidate: {
-        candidateId: "pending-focus",
-        createdAt: "",
-        fromText: "",
-        language: activeSegment.detectedLanguage,
-        segmentId: pendingCandidateFocus.segmentId,
-        sentenceCue: pendingCandidateFocus.cue,
-        sentenceIndex: pendingCandidateFocus.sentenceIndex,
-        speakerId: activeSegment.speakerId ?? "unassigned",
-        status: "pending",
-        toText: "",
-        updatedAt: ""
-      },
-      drafts: sentenceDrafts
+    const { activeCueKey: nextCueKey, cueToPlay, draftId } = resolveCandidateFocusState({
+      drafts: sentenceDrafts,
+      focus: pendingCandidateFocus
     });
     if (!draftId) {
       return;
     }
 
+    if (nextCueKey) {
+      setActiveCueKey(nextCueKey);
+    }
     setFocusedSentenceDraftId(draftId);
     sentenceDraftRefs.current[draftId]?.focus();
-    const nextCue = pendingCandidateFocus.cue;
     setPendingCandidateFocus(null);
-    if (nextCue) {
-      void jumpToCue(nextCue);
+    if (cueToPlay) {
+      void jumpToCue(cueToPlay);
     }
   }, [activeSegment, pendingCandidateFocus, sentenceDrafts]);
 

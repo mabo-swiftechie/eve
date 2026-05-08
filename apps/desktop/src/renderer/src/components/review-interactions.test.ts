@@ -6,6 +6,7 @@ import {
   cueKey,
   findSentenceDraftIdForCandidate,
   getCueAtTime,
+  resolveCandidateFocusState,
   resolveCandidateUpdate
 } from "./review-interactions";
 
@@ -118,6 +119,40 @@ describe("review interactions", () => {
     });
 
     expect(draftId).toBe(drafts[0]?.id);
+  });
+
+  it("resolves locate state into cue highlight and playback targets", () => {
+    const drafts = buildSentenceDrafts({
+      cues: [
+        { endMs: 1200, startMs: 0, text: "长劲短劲都有。" },
+        { endMs: 2400, startMs: 1201, text: "这个设计吧。" }
+      ],
+      language: "zh",
+      seedText: "长句短句都有。这个设计吧。"
+    });
+
+    const state = resolveCandidateFocusState({
+      drafts,
+      focus: {
+        cue: {
+          endMs: 1200,
+          startMs: 0,
+          text: "长劲短劲都有。"
+        },
+        segmentId: "segment-1",
+        sentenceIndex: 0
+      }
+    });
+
+    expect(state).toEqual({
+      activeCueKey: "0:1200:长劲短劲都有。",
+      cueToPlay: {
+        endMs: 1200,
+        startMs: 0,
+        text: "长劲短劲都有。"
+      },
+      draftId: drafts[0]?.id ?? null
+    });
   });
 
   it("composes sentence drafts back into one zh transcript", () => {
