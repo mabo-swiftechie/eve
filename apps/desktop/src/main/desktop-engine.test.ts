@@ -11,6 +11,7 @@ const modelManagerState = {
     downloading: false,
     ffmpegAvailable: true,
     senseVoiceReady: true,
+    speakerEmbeddingReady: false,
     vadReady: true
   })),
   getVadModelPath: vi.fn(() => "/models/vad.onnx")
@@ -103,6 +104,7 @@ describe("DesktopEngine", () => {
       downloading: false,
       ffmpegAvailable: true,
       senseVoiceReady: true,
+      speakerEmbeddingReady: false,
       vadReady: true
     });
     vadSegments.length = 0;

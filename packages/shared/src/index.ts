@@ -266,6 +266,7 @@ export const DEFAULT_STATUS: RecorderStatusSnapshot = {
   recording: false,
   rms: 0,
   senseVoiceReady: false,
+  speakerEmbeddingReady: false,
   statusMessage: "桌面端已就绪。",
   vadReady: false,
   waveformBins: Array.from({ length: 48 }, () => 0)

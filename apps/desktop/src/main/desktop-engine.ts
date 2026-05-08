@@ -103,7 +103,7 @@ export class DesktopEngine {
       if (settings.recording.audioFormat === "flac") {
         await this.modelManager.requireFfmpeg();
       }
-      const deviceLabel = this.segment.deviceLabel;
+      const deviceLabel = this.segment!.deviceLabel;
       await this.flushVad();
       await this.closeSegment();
       this.settings = settings;
