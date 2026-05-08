@@ -29,6 +29,7 @@ describe("ReviewLearn", () => {
     expect(markup).toContain("Save manual correction");
     expect(markup).toContain("Load segment audio");
     expect(markup).toContain("Sentence jump points");
+    expect(markup).toContain("Sentence editing");
     expect(markup).toContain("王晋");
     expect(markup).toContain("Review candidates");
     expect(markup).toContain("Apply");

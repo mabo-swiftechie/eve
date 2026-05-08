@@ -1,5 +1,11 @@
 import type { RuleCandidateResolution, SentenceCue, SpeakerProfile } from "@eve/shared";
 
+export interface SentenceDraft {
+  cue: SentenceCue | null;
+  id: string;
+  text: string;
+}
+
 export function cueKey(cue: SentenceCue): string {
   return `${cue.startMs}:${cue.endMs}:${cue.text}`;
 }
@@ -63,4 +69,59 @@ export function resolveCandidateUpdate({
     ruleCandidates: nextProfile.ruleCandidates,
     updatedAt
   };
+}
+
+export function buildSentenceDrafts({
+  cues,
+  language,
+  seedText
+}: {
+  cues: SentenceCue[];
+  language: string;
+  seedText: string;
+}): SentenceDraft[] {
+  const normalizedSeed = seedText.trim();
+  if (cues.length === 0) {
+    return normalizedSeed ? [{ cue: null, id: "draft:0", text: normalizedSeed }] : [];
+  }
+
+  const splitSentences = splitTextIntoSentences(normalizedSeed, language);
+  return cues.map((cue, index) => ({
+    cue,
+    id: `draft:${cueKey(cue)}`,
+    text: splitSentences[index] ?? cue.text
+  }));
+}
+
+export function composeSentenceDrafts({
+  drafts,
+  language
+}: {
+  drafts: SentenceDraft[];
+  language: string;
+}): string {
+  const parts = drafts
+    .map((draft) => draft.text.trim())
+    .filter((text) => text.length > 0);
+  if (language === "zh" || language === "ja") {
+    return parts.join("");
+  }
+  return parts.join(" ");
+}
+
+function splitTextIntoSentences(input: string, language: string): string[] {
+  if (!input) {
+    return [];
+  }
+  const sentences =
+    language === "zh" || language === "ja"
+      ? input
+          .split(/(?<=[。！？!?；;])/u)
+          .map((part) => part.trim())
+          .filter(Boolean)
+      : input
+          .split(/(?<=[.!?;])/)
+          .map((part) => part.trim())
+          .filter(Boolean);
+  return sentences;
 }

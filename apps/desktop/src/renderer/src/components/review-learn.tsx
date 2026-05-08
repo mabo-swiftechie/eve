@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState, type MutableRefObject } from "react";
 import { improveTranscript, type DesktopSnapshot, type SentenceCue } from "@eve/shared";
 import { SpeakerProfilePanel } from "./speaker-profile-panel";
-import { cueKey, getCueAtTime } from "./review-interactions";
+import {
+  buildSentenceDrafts,
+  composeSentenceDrafts,
+  cueKey,
+  getCueAtTime,
+  type SentenceDraft
+} from "./review-interactions";
 import { createT } from "../lib/i18n";
 
 export function ReviewLearn({
@@ -28,14 +34,25 @@ export function ReviewLearn({
   );
   const activeSegment =
     segments.find((segment) => segment.segmentId === selectedSegmentId) ?? segments[0] ?? null;
+  const currentDraft =
+    activeSegment?.manualCorrectedTranscript ?? activeSegment?.improvedAutoTranscript ?? "";
   const [draftManual, setDraftManual] = useState(
-    activeSegment?.manualCorrectedTranscript ?? activeSegment?.improvedAutoTranscript ?? ""
+    currentDraft
   );
   const [audioDataUrl, setAudioDataUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioMissing, setAudioMissing] = useState(false);
   const [activeCueKey, setActiveCueKey] = useState<string | null>(null);
   const [pendingCue, setPendingCue] = useState<SentenceCue | null>(null);
+  const [sentenceDrafts, setSentenceDrafts] = useState<SentenceDraft[]>(
+    activeSegment
+      ? buildSentenceDrafts({
+          cues: activeSegment.sentenceCues ?? [],
+          language: activeSegment.detectedLanguage,
+          seedText: currentDraft
+        })
+      : []
+  );
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pauseTimerRef = useRef<number | null>(null);
   const activeSpeaker =
@@ -52,13 +69,22 @@ export function ReviewLearn({
   }, [snapshot.review.selectedRecordingId]);
 
   useEffect(() => {
-    setDraftManual(
-      activeSegment?.manualCorrectedTranscript ?? activeSegment?.improvedAutoTranscript ?? ""
+    const nextDraft = currentDraft;
+    setDraftManual(nextDraft);
+    setSentenceDrafts(
+      activeSegment
+        ? buildSentenceDrafts({
+            cues: activeSegment.sentenceCues ?? [],
+            language: activeSegment.detectedLanguage,
+            seedText: nextDraft
+          })
+        : []
     );
   }, [
-    activeSegment?.manualCorrectedTranscript,
-    activeSegment?.improvedAutoTranscript,
-    activeSegment?.segmentId
+    currentDraft,
+    activeSegment?.detectedLanguage,
+    activeSegment?.segmentId,
+    activeSegment?.sentenceCues
   ]);
 
   useEffect(() => {
@@ -252,6 +278,43 @@ export function ReviewLearn({
                   onChange={(event) => setDraftManual(event.currentTarget.value)}
                 />
               </label>
+              {sentenceDrafts.length > 0 ? (
+                <div className="space-y-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
+                    {t("reviewSentenceEditorTitle")}
+                  </p>
+                  <div className="grid gap-3">
+                    {sentenceDrafts.map((draft, index) => (
+                      <label key={draft.id} className="block space-y-1">
+                        <span className="text-[11px] font-semibold text-[color:var(--muted)]">
+                          {draft.cue ? formatCueTime(draft.cue.startMs) : `${index + 1}`}
+                        </span>
+                        <textarea
+                          className="min-h-20 w-full rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-sm leading-6 text-[color:var(--foreground)] outline-none focus:border-[color:var(--ring)] focus:ring-1 focus:ring-[color:var(--ring)]"
+                          value={draft.text}
+                          onChange={(event) => {
+                            if (!activeSegment) {
+                              return;
+                            }
+                            const nextSentenceDrafts = sentenceDrafts.map((item) =>
+                              item.id === draft.id
+                                ? { ...item, text: event.currentTarget.value }
+                                : item
+                            );
+                            setSentenceDrafts(nextSentenceDrafts);
+                            setDraftManual(
+                              composeSentenceDrafts({
+                                drafts: nextSentenceDrafts,
+                                language: activeSegment.detectedLanguage
+                              })
+                            );
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               {activeSegment.jaTranslation ? (
                 <LayerBlock label={t("reviewTranslationLabel")} value={activeSegment.jaTranslation} />
               ) : null}

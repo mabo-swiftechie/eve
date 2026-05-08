@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { SentenceCue, SpeakerProfile } from "@eve/shared";
-import { cueKey, getCueAtTime, resolveCandidateUpdate } from "./review-interactions";
+import {
+  buildSentenceDrafts,
+  composeSentenceDrafts,
+  cueKey,
+  getCueAtTime,
+  resolveCandidateUpdate
+} from "./review-interactions";
 
 describe("review interactions", () => {
   it("applies a confirmed candidate into the speaker lexicon", () => {
@@ -47,6 +53,31 @@ describe("review interactions", () => {
 
     expect(getCueAtTime(cues, 2500)).toEqual(cues[1]);
     expect(cueKey(cues[1]!)).toBe("1801:4200:第二句。");
+  });
+
+  it("builds sentence drafts from cue count when improved text is already sentence-split", () => {
+    const drafts = buildSentenceDrafts({
+      cues: [
+        { endMs: 1800, startMs: 0, text: "第一句。" },
+        { endMs: 4200, startMs: 1801, text: "第二句。" }
+      ],
+      language: "zh",
+      seedText: "改善后的第一句。改善后的第二句。"
+    });
+
+    expect(drafts.map((draft) => draft.text)).toEqual(["改善后的第一句。", "改善后的第二句。"]);
+  });
+
+  it("composes sentence drafts back into one zh transcript", () => {
+    const transcript = composeSentenceDrafts({
+      drafts: [
+        { cue: null, id: "1", text: "第一句。" },
+        { cue: null, id: "2", text: "第二句。" }
+      ],
+      language: "zh"
+    });
+
+    expect(transcript).toBe("第一句。第二句。");
   });
 });
 
