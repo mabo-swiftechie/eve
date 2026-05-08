@@ -1,0 +1,187 @@
+import { useEffect, useState } from "react";
+import type { DesktopSnapshot } from "@eve/shared";
+import { SpeakerProfilePanel } from "./speaker-profile-panel";
+import { createT } from "../lib/i18n";
+
+export function ReviewLearn({
+  actions,
+  snapshot
+}: {
+  actions: {
+    saveManualCorrection: (
+      recordingId: string,
+      segmentId: string,
+      transcript: string
+    ) => Promise<void>;
+    updateSpeakerProfile: (
+      profile: NonNullable<DesktopSnapshot["review"]["speakers"]>[number]
+    ) => Promise<void>;
+  };
+  snapshot: DesktopSnapshot;
+}) {
+  const t = createT(snapshot.settings.desktop.language);
+  const segments = snapshot.review.segments;
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(
+    segments[0]?.segmentId ?? null
+  );
+  const activeSegment =
+    segments.find((segment) => segment.segmentId === selectedSegmentId) ?? segments[0] ?? null;
+  const [draftManual, setDraftManual] = useState(
+    activeSegment?.manualCorrectedTranscript ?? activeSegment?.improvedAutoTranscript ?? ""
+  );
+  const activeSpeaker =
+    snapshot.review.speakers.find((speaker) => speaker.speakerId === activeSegment?.speakerId) ??
+    null;
+
+  useEffect(() => {
+    setSelectedSegmentId(segments[0]?.segmentId ?? null);
+  }, [snapshot.review.selectedRecordingId]);
+
+  useEffect(() => {
+    setDraftManual(
+      activeSegment?.manualCorrectedTranscript ?? activeSegment?.improvedAutoTranscript ?? ""
+    );
+  }, [
+    activeSegment?.manualCorrectedTranscript,
+    activeSegment?.improvedAutoTranscript,
+    activeSegment?.segmentId
+  ]);
+
+  if (!snapshot.review.selectedRecordingId) {
+    return (
+      <section className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 shadow-[var(--shadow-raised-sm)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">
+          {t("reviewModeTitle")}
+        </p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-[color:var(--foreground)]">
+          {t("reviewModeDescription")}
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
+          {t("reviewModeEmptyState")}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <div className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 shadow-[var(--shadow-raised-sm)]">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">
+          {t("reviewModeTitle")}
+        </p>
+        <h2 className="mt-2 text-xl font-semibold tracking-tight text-[color:var(--foreground)]">
+          {t("reviewModeDescription")}
+        </h2>
+        <p className="mt-2 break-all text-xs leading-6 text-[color:var(--muted)]">
+          {snapshot.review.selectedRecordingId}
+        </p>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)_280px]">
+        <aside className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            {t("reviewSegmentsTitle")}
+          </p>
+          <div className="mt-3 grid gap-2">
+            {segments.map((segment) => (
+              <button
+                key={segment.segmentId}
+                className="rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] px-3 py-2 text-left text-xs leading-5 text-[color:var(--foreground)]"
+                type="button"
+                onClick={() => setSelectedSegmentId(segment.segmentId)}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold">{segment.speakerDisplayName}</span>
+                  <span className="text-[10px] uppercase tracking-[0.12em] text-[color:var(--muted)]">
+                    {segment.detectedLanguage}
+                  </span>
+                </div>
+                <p className="mt-1 line-clamp-3">
+                  {segment.improvedAutoTranscript ?? segment.rawTranscript}
+                </p>
+              </button>
+            ))}
+          </div>
+        </aside>
+
+        <div className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
+          {activeSegment ? (
+            <div className="space-y-4">
+              <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--border)] pb-3">
+                <div>
+                  <h3 className="text-lg font-semibold tracking-tight text-[color:var(--foreground)]">
+                    {activeSegment.speakerDisplayName}
+                  </h3>
+                  <p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                    {activeSegment.startAt}
+                  </p>
+                </div>
+                <div className="rounded-full bg-[color:var(--panel)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--muted)]">
+                  {activeSegment.status}
+                </div>
+              </header>
+
+              <LayerBlock label={t("reviewRawLabel")} value={activeSegment.rawTranscript} />
+              <LayerBlock
+                label={t("reviewImprovedLabel")}
+                value={activeSegment.improvedAutoTranscript ?? ""}
+              />
+              <label className="block space-y-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
+                  {t("reviewManualLabel")}
+                </span>
+                <textarea
+                  className="min-h-28 w-full rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] px-3 py-2 text-sm leading-7 text-[color:var(--foreground)] outline-none focus:border-[color:var(--ring)] focus:ring-1 focus:ring-[color:var(--ring)]"
+                  value={draftManual}
+                  onChange={(event) => setDraftManual(event.currentTarget.value)}
+                />
+              </label>
+              {activeSegment.jaTranslation ? (
+                <LayerBlock label={t("reviewTranslationLabel")} value={activeSegment.jaTranslation} />
+              ) : null}
+
+              <div className="flex justify-end">
+                <button
+                  className="inline-flex h-8 items-center justify-center rounded-lg bg-gradient-to-b from-[color:var(--accent)] to-[color:color-mix(in_srgb,var(--accent)_85%,black)] px-3.5 text-xs font-medium text-[color:var(--accent-foreground)] shadow-[var(--shadow-raised)]"
+                  type="button"
+                  onClick={() =>
+                    void actions.saveManualCorrection(
+                      snapshot.review.selectedRecordingId!,
+                      activeSegment.segmentId,
+                      draftManual
+                    )
+                  }
+                >
+                  {t("reviewSaveManualAction")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm leading-6 text-[color:var(--muted)]">
+              {t("reviewSegmentsEmpty")}
+            </p>
+          )}
+        </div>
+
+        <SpeakerProfilePanel
+          actions={{ updateSpeakerProfile: actions.updateSpeakerProfile }}
+          language={snapshot.settings.desktop.language}
+          profile={activeSpeaker}
+        />
+      </div>
+    </section>
+  );
+}
+
+function LayerBlock({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
+        {label}
+      </p>
+      <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-[color:var(--foreground)]">
+        {value}
+      </p>
+    </div>
+  );
+}

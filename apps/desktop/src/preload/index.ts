@@ -3,7 +3,8 @@ import type {
   AppSettings,
   DesktopSnapshot,
   DeviceInfo,
-  MicrophonePermissionStatus
+  MicrophonePermissionStatus,
+  SpeakerProfile
 } from "@eve/shared";
 
 export interface DesktopBridgeApi {
@@ -11,6 +12,7 @@ export interface DesktopBridgeApi {
   captureError: (message: string) => Promise<DesktopSnapshot>;
   closeWindow: () => Promise<void>;
   minimizeWindow: () => Promise<void>;
+  openReview: (recordingId: string) => Promise<DesktopSnapshot>;
   pushAudioChunk: (payload: {
     deviceId: string;
     deviceLabel: string;
@@ -25,10 +27,16 @@ export interface DesktopBridgeApi {
   openMicrophoneSettings: () => Promise<boolean>;
   requestMicrophonePermission: () => Promise<MicrophonePermissionStatus>;
   runTranscribe: (inputDir: string) => Promise<DesktopSnapshot>;
+  saveManualCorrection: (
+    recordingId: string,
+    segmentId: string,
+    transcript: string
+  ) => Promise<DesktopSnapshot>;
   saveSettings: (settings: AppSettings) => Promise<AppSettings>;
   setWindowPinned: (pinned: boolean) => Promise<DesktopSnapshot>;
   startRecording: () => Promise<DesktopSnapshot>;
   stopRecording: () => Promise<DesktopSnapshot>;
+  updateSpeakerProfile: (profile: SpeakerProfile) => Promise<DesktopSnapshot>;
   updateDevices: (devices: DeviceInfo[]) => Promise<DesktopSnapshot>;
 }
 
@@ -37,6 +45,7 @@ const api: DesktopBridgeApi = {
   captureError: (message) => ipcRenderer.invoke("desktop:capture-error", message),
   closeWindow: () => ipcRenderer.invoke("desktop:close-window"),
   minimizeWindow: () => ipcRenderer.invoke("desktop:minimize-window"),
+  openReview: (recordingId) => ipcRenderer.invoke("desktop:open-review", recordingId),
   pushAudioChunk: ({ samples, ...payload }) => {
     // Pass the underlying ArrayBuffer + byteOffset/length so Electron's
     // structured-clone transfers binary data instead of serialising to a
@@ -66,10 +75,13 @@ const api: DesktopBridgeApi = {
   openMicrophoneSettings: () => ipcRenderer.invoke("desktop:open-permission-settings"),
   requestMicrophonePermission: () => ipcRenderer.invoke("desktop:request-permission"),
   runTranscribe: (inputDir) => ipcRenderer.invoke("desktop:run-transcribe", inputDir),
+  saveManualCorrection: (recordingId, segmentId, transcript) =>
+    ipcRenderer.invoke("desktop:save-manual-correction", recordingId, segmentId, transcript),
   saveSettings: (settings) => ipcRenderer.invoke("desktop:save-settings", settings),
   setWindowPinned: (pinned) => ipcRenderer.invoke("desktop:set-window-pinned", pinned),
   startRecording: () => ipcRenderer.invoke("desktop:start-recording"),
   stopRecording: () => ipcRenderer.invoke("desktop:stop-recording"),
+  updateSpeakerProfile: (profile) => ipcRenderer.invoke("desktop:update-speaker-profile", profile),
   updateDevices: (devices) => ipcRenderer.invoke("desktop:update-devices", devices)
 };
 

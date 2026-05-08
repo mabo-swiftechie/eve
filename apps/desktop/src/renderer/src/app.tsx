@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDesktopSnapshot, desktopActions } from "@/lib/desktop-store";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,6 +9,7 @@ import { CaptureController } from "@/components/capture-controller";
 import { HomeGithubStar } from "@/components/home-github-star";
 import { WindowsWindowControls } from "@/components/windows-window-controls";
 import { LiveStageView } from "@/components/live-stage-view";
+import { ReviewLearn } from "@/components/review-learn";
 import { createT } from "@/lib/i18n";
 
 type AppMode = "home" | "live-stage" | "review";
@@ -18,6 +19,12 @@ export function App() {
   const [sharedStream, setSharedStream] = useState<MediaStream | null>(null);
   const [mode, setMode] = useState<AppMode>("home");
   const t = createT(snapshot.settings.desktop.language);
+
+  useEffect(() => {
+    if (snapshot.review.selectedRecordingId) {
+      setMode("review");
+    }
+  }, [snapshot.review.selectedRecordingId]);
 
   return (
     <main className="h-screen text-[color:var(--foreground)]">
@@ -78,17 +85,13 @@ export function App() {
             ) : null}
 
             {mode === "review" ? (
-              <section className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--panel)] p-5 shadow-[var(--shadow-raised-sm)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">
-                  {t("reviewModeTitle")}
-                </p>
-                <h2 className="mt-2 text-xl font-semibold tracking-tight text-[color:var(--foreground)]">
-                  {t("reviewModeDescription")}
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--muted)]">
-                  {t("reviewModeEmptyState")}
-                </p>
-              </section>
+              <ReviewLearn
+                actions={{
+                  saveManualCorrection: desktopActions.saveManualCorrection,
+                  updateSpeakerProfile: desktopActions.updateSpeakerProfile
+                }}
+                snapshot={snapshot}
+              />
             ) : null}
           </div>
         </div>

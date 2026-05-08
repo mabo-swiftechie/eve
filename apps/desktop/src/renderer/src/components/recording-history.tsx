@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FolderCog, FolderOpen, Mic } from "lucide-react";
+import { FolderCog, FolderOpen, MessagesSquare, Mic } from "lucide-react";
 import type { AppLanguage, RecordingHistoryItem } from "@eve/shared";
 import { desktopActions } from "@/lib/desktop-store";
 import { Button } from "@/components/ui/button";
@@ -172,6 +172,16 @@ export function RecordingHistory({
                   <FolderCog className="h-3.5 w-3.5" />
                 </Button>
               )}
+              <Button
+                aria-label={t("historyReviewTitle")}
+                className="w-8 shrink-0 px-0"
+                size="sm"
+                title={t("historyReviewTitle")}
+                variant="subtle"
+                onClick={() => desktopActions.openReview(group.folderPath)}
+              >
+                <MessagesSquare className="h-3.5 w-3.5" />
+              </Button>
               <Button
                 aria-label={t("historyOpenFolderTitle")}
                 className="w-8 shrink-0 px-0"

@@ -1,6 +1,6 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import electron from "electron";
+import { app } from "electron";
 import type { RuleCandidate, SpeakerProfile } from "@eve/shared";
 
 type SpeakerProfileMap = Record<string, SpeakerProfile>;
@@ -117,6 +117,6 @@ export class SpeakerProfileStore {
 
 const resolveSpeakerProfilePath = (): string => {
   const baseDirectory =
-    process.env.EVE_STORE_DIR ?? electron.app?.getPath("userData") ?? process.cwd();
+    process.env.EVE_STORE_DIR ?? app?.getPath("userData") ?? process.cwd();
   return join(baseDirectory, "speaker-profiles.json");
 };

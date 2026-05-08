@@ -6,7 +6,8 @@ import {
   type AppSettings,
   type DesktopSnapshot,
   type MicrophonePermissionStatus,
-  type RecorderStatusSnapshot
+  type RecorderStatusSnapshot,
+  type SpeakerProfile
 } from "@eve/shared";
 import { useSyncExternalStore } from "react";
 import { createT } from "@/lib/i18n";
@@ -176,6 +177,13 @@ export const desktopActions = {
       bridge?.openRecordingFolder(target) ?? rejectBridgeCall()
     );
   },
+  async openReview(recordingId: string): Promise<void> {
+    updateSnapshot(
+      await withToast(createT(snapshot.settings.desktop.language)("errorOpenReviewFailed"), () =>
+        bridge?.openReview(recordingId) ?? rejectBridgeCall()
+      )
+    );
+  },
   async pickDirectory(defaultPath?: string): Promise<string | null> {
     return withToast(createT(snapshot.settings.desktop.language)("errorOpenDirectoryPickerFailed"), () =>
       bridge?.pickDirectory(defaultPath) ?? rejectBridgeCall()
@@ -257,6 +265,28 @@ export const desktopActions = {
     updateSnapshot(
       await withToast(createT(snapshot.settings.desktop.language)("errorStopRecordingFailed"), () =>
         bridge?.stopRecording() ?? rejectBridgeCall()
+      )
+    );
+  },
+  async saveManualCorrection(
+    recordingId: string,
+    segmentId: string,
+    transcript: string
+  ): Promise<void> {
+    updateSnapshot(
+      await withToast(
+        createT(snapshot.settings.desktop.language)("errorSaveManualCorrectionFailed"),
+        () =>
+          bridge?.saveManualCorrection(recordingId, segmentId, transcript) ??
+          rejectBridgeCall()
+      )
+    );
+  },
+  async updateSpeakerProfile(profile: SpeakerProfile): Promise<void> {
+    updateSnapshot(
+      await withToast(
+        createT(snapshot.settings.desktop.language)("errorUpdateSpeakerProfileFailed"),
+        () => bridge?.updateSpeakerProfile(profile) ?? rejectBridgeCall()
       )
     );
   },
