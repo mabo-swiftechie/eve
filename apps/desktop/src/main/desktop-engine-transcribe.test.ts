@@ -30,14 +30,17 @@ describe("transcribeAudioDirectory", () => {
       improveTranscript: (text) => `improved:${text}`,
       inputDirectory,
       limit: 0,
-      recognizer: {} as Parameters<typeof transcribeAudioFile>[0],
+      recognizer: {} as never,
       requireFfmpeg: async () => {},
       segmentTranslator: {
         translateChineseToJapanese: async (text) => `ja:${text}`
       }
     });
 
-    const payload = writeJsonAtomic.mock.calls.at(-1)?.[1] as {
+    const lastWrite = (writeJsonAtomic as unknown as {
+      mock: { calls: unknown[][] };
+    }).mock.calls.at(-1);
+    const payload = lastWrite?.[1] as {
       speech_segments?: Array<Record<string, unknown>>;
       text?: string;
     };
