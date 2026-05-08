@@ -352,7 +352,7 @@ export class DesktopEngine {
         improvedAutoTranscript,
         jaTranslation,
         rawTranscript: text,
-        recordingId: this.segment.audioPath,
+        recordingId: this.segment.recordingId,
         speaker,
         speakerProfile,
         startOffsetMs: vadSegment.start,

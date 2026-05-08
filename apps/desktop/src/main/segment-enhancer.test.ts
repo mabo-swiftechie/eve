@@ -30,6 +30,15 @@ describe("improveTranscript", () => {
 
     expect(improveTranscript("hello world", "en", profile)).toBe("hello world");
   });
+
+  it("applies conservative style rules after lexicon replacements", () => {
+    const profile = createProfile({
+      correctionLexiconZh: { "长劲短劲": "长句短句" },
+      styleRulesZh: ["长句短句 都有=>长句短句都有"]
+    });
+
+    expect(improveTranscript("长劲短劲 都有。", "zh", profile)).toBe("长句短句都有。");
+  });
 });
 
 function createProfile(

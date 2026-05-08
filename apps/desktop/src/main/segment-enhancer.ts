@@ -16,9 +16,13 @@ export const improveTranscript = (
     language === "ja"
       ? profile?.correctionLexiconJa ?? {}
       : profile?.correctionLexiconZh ?? {};
+  const styleRules =
+    language === "ja"
+      ? profile?.styleRulesJa ?? []
+      : profile?.styleRulesZh ?? [];
 
   return applyFluencyCleanup(
-    applyReplacements(applyReplacements(raw, sharedTerms), lexicon),
+    applyStyleRules(applyReplacements(applyReplacements(raw, sharedTerms), lexicon), styleRules),
     language
   );
 };
@@ -32,6 +36,18 @@ const applyReplacements = (
     ([left], [right]) => right.length - left.length
   )) {
     if (!fromText) {
+      continue;
+    }
+    output = output.replaceAll(fromText, toText);
+  }
+  return output;
+};
+
+const applyStyleRules = (input: string, styleRules: string[]): string => {
+  let output = input;
+  for (const rule of styleRules) {
+    const [fromText, toText] = rule.split("=>").map((value) => value?.trim() ?? "");
+    if (!fromText || !toText) {
       continue;
     }
     output = output.replaceAll(fromText, toText);
