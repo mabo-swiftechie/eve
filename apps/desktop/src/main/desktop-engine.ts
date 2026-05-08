@@ -300,10 +300,12 @@ export class DesktopEngine {
       createSenseVoiceRecognizer(this.modelManager.getSenseVoiceDirectory(), this.settings.recording.asrLanguage);
     this.recognizer = recognizer;
     const processed = await transcribeAudioDirectory({
+      improveTranscript: (raw, language) => this.improveTranscript(raw, language, null),
       inputDirectory,
       limit: TRANSCRIBE_LIMIT,
       recognizer,
-      requireFfmpeg: () => this.modelManager.requireFfmpeg()
+      requireFfmpeg: () => this.modelManager.requireFfmpeg(),
+      segmentTranslator: this.segmentTranslator
     });
     this.patchStatus({
       statusMessage: `Transcribed ${processed} recording${processed === 1 ? "" : "s"}.`

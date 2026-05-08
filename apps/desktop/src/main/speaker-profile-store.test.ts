@@ -64,6 +64,45 @@ describe("SpeakerProfileStore", () => {
     await expect(store.findProfileByName("王晋")).resolves.toEqual(profile);
     await expect(store.findProfileByName("晋哥")).resolves.toEqual(profile);
   });
+
+  it("serializes concurrent writes without dropping profiles or candidates", async () => {
+    const store = new SpeakerProfileStore(await createStorePath());
+    const wangJin = createProfile();
+    const quBoss = createProfile({
+      displayName: "曲boss",
+      speakerId: "speaker-qb"
+    });
+
+    await Promise.all([store.saveProfile(wangJin), store.saveProfile(quBoss)]);
+    await Promise.all([
+      store.upsertCandidate(wangJin.speakerId, createCandidate()),
+      store.upsertCandidate(
+        quBoss.speakerId,
+        createCandidate({
+          candidateId: "candidate-2",
+          speakerId: quBoss.speakerId
+        })
+      )
+    ]);
+
+    await expect(store.listProfiles()).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          speakerId: wangJin.speakerId,
+          ruleCandidates: [createCandidate()]
+        }),
+        expect.objectContaining({
+          speakerId: quBoss.speakerId,
+          ruleCandidates: [
+            createCandidate({
+              candidateId: "candidate-2",
+              speakerId: quBoss.speakerId
+            })
+          ]
+        })
+      ])
+    );
+  });
 });
 
 async function createStorePath(): Promise<string> {
