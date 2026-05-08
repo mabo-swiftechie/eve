@@ -201,7 +201,7 @@ describe("DesktopEngine", () => {
   it("persists enriched speech segments with enhancement and zh-ja translation", async () => {
     const improveTranscript = vi.fn((text: string) => `improved:${text}`);
     const translateChineseToJapanese = vi.fn(async (text: string) => `ja:${text}`);
-    const getProfile = vi.fn(async () => ({
+    const findProfileByName = vi.fn(async () => ({
       aliases: [],
       correctionLexiconJa: {},
       correctionLexiconZh: { "长劲短劲": "长句短句" },
@@ -210,7 +210,7 @@ describe("DesktopEngine", () => {
       notes: "",
       ruleCandidates: [],
       sharedTerms: { Qwen3: "Qwen3" },
-      speakerId: "speaker:王晋",
+      speakerId: "speaker-wj",
       styleRulesJa: [],
       styleRulesZh: [],
       updatedAt: "2026-05-07T12:00:00.000Z"
@@ -226,7 +226,10 @@ describe("DesktopEngine", () => {
     const engine = new DesktopEngine(() => {}, {
       improveTranscript,
       segmentTranslator: { translateChineseToJapanese },
-      speakerProfileStore: { getProfile }
+      speakerProfileStore: {
+        findProfileByName,
+        getProfile: vi.fn(async () => null)
+      }
     });
 
     vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
@@ -251,8 +254,9 @@ describe("DesktopEngine", () => {
     expect(improveTranscript).toHaveBeenCalledWith(
       "长劲短劲都有，Qwen3 也有。",
       "zh",
-      expect.objectContaining({ speakerId: "speaker:王晋" })
+      expect.objectContaining({ speakerId: "speaker-wj" })
     );
+    expect(findProfileByName).toHaveBeenCalledWith("王晋");
     expect(translateChineseToJapanese).toHaveBeenCalledWith(
       "improved:长劲短劲都有，Qwen3 也有。"
     );
@@ -267,7 +271,7 @@ describe("DesktopEngine", () => {
         ja_translation: "ja:improved:长劲短劲都有，Qwen3 也有。",
         speaker: "王晋",
         speaker_display_name: "王晋",
-        speaker_id: "speaker:王晋",
+        speaker_id: "speaker-wj",
         start_at: expect.any(String),
         status: "translation_ready"
       })

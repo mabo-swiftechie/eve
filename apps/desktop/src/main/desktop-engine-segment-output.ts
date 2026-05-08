@@ -3,8 +3,7 @@ import { mkdir, rm } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import {
   type AudioFormat,
-  type SegmentRecord,
-  type SpeakerProfile
+  type SegmentRecord
 } from "@eve/shared";
 import { WavWriter, transcodeWavToFlac, writeJsonAtomic } from "./audio-utils";
 
@@ -45,7 +44,8 @@ interface BuildEnrichedSegmentRecordOptions {
   rawTranscript: string;
   recordingId: string;
   speaker: string | null;
-  speakerProfile: SpeakerProfile | null;
+  speakerDisplayName: string;
+  speakerId: string;
   startOffsetMs: number;
   startedAt: Date;
   vadSampleCount: number;
@@ -84,7 +84,8 @@ export function buildEnrichedSegmentRecord({
   rawTranscript,
   recordingId,
   speaker,
-  speakerProfile,
+  speakerDisplayName,
+  speakerId,
   startOffsetMs,
   startedAt,
   vadSampleCount
@@ -102,8 +103,8 @@ export function buildEnrichedSegmentRecord({
     recordingId,
     segmentId: randomUUID(),
     speaker,
-    speakerDisplayName: getSpeakerDisplayName(speaker, speakerProfile),
-    speakerId: speaker ? `speaker:${speaker}` : null,
+    speakerDisplayName,
+    speakerId,
     startAt: new Date(startAtMs).toISOString(),
     status: jaTranslation ? "translation_ready" : "auto_improved",
     text: rawTranscript
@@ -198,14 +199,4 @@ function formatSegmentName(value: Date): string {
 
 function formatSegmentDirectoryName(value: Date): string {
   return `${value.getFullYear()}${`${value.getMonth() + 1}`.padStart(2, "0")}${`${value.getDate()}`.padStart(2, "0")}`;
-}
-
-function getSpeakerDisplayName(
-  speaker: string | null,
-  speakerProfile: SpeakerProfile | null
-): string {
-  if (speakerProfile?.displayName) {
-    return speakerProfile.displayName;
-  }
-  return speaker ?? "Speaker A";
 }
