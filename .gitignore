@@ -51,6 +51,7 @@ logs/
 
 # Node / desktop
 node_modules/
+.worktrees/
 apps/desktop/out/
 apps/desktop/dist/
 apps/desktop/.electron-cache/
