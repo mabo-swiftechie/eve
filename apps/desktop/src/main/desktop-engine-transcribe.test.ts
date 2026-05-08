@@ -5,7 +5,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const transcribeAudioFile = vi.fn(async () => ({
   lang: "zh",
-  text: "长劲短劲都有，Qwen3 也有。"
+  text: "长劲短劲都有。Qwen3 也有。",
+  timestamps: [0, 0.4, 0.8, 1.2, 1.6],
+  tokens: ["长劲", "短劲", "都有。", "Qwen3", "也有。"]
 }));
 const writeJsonAtomic = vi.fn(async () => {});
 
@@ -45,13 +47,17 @@ describe("transcribeAudioDirectory", () => {
       text?: string;
     };
     expect(processed).toBe(1);
-    expect(payload.text).toBe("长劲短劲都有，Qwen3 也有。");
+    expect(payload.text).toBe("长劲短劲都有。Qwen3 也有。");
     expect(payload.speech_segments).toEqual([
       expect.objectContaining({
         audio_clip_ref: expect.stringContaining("sample.wav"),
-        improved_auto_transcript: "improved:长劲短劲都有，Qwen3 也有。",
-        ja_translation: "ja:improved:长劲短劲都有，Qwen3 也有。",
-        raw_transcript: "长劲短劲都有，Qwen3 也有。",
+        improved_auto_transcript: "improved:长劲短劲都有。Qwen3 也有。",
+        ja_translation: "ja:improved:长劲短劲都有。Qwen3 也有。",
+        raw_transcript: "长劲短劲都有。Qwen3 也有。",
+        sentence_cues: [
+          { endMs: 1200, startMs: 0, text: "长劲短劲都有。" },
+          { endMs: 2000, startMs: 1200, text: "Qwen3也有。" }
+        ],
         speaker_display_name: "Speaker A",
         speaker_id: null
       })

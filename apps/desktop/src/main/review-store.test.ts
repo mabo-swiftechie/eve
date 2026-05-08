@@ -32,6 +32,13 @@ describe("ReviewStore", () => {
         improvedAutoTranscript: "长句短句都有，这设计吧。",
         manualCorrectedTranscript: null,
         rawTranscript: "长劲短劲都有，这设计吧。",
+        sentenceCues: [
+          {
+            endMs: 3200,
+            startMs: 0,
+            text: "长劲短劲都有，这设计吧。"
+          }
+        ],
         speakerDisplayName: "王晋",
         status: "translation_ready"
       })
@@ -118,6 +125,13 @@ async function createReviewDirectory(): Promise<string> {
           raw_transcript: "长劲短劲都有，这设计吧。",
           recording_id: "recording-1",
           segment_id: "segment-1",
+          sentence_cues: [
+            {
+              end_ms: 3200,
+              start_ms: 0,
+              text: "长劲短劲都有，这设计吧。"
+            }
+          ],
           speaker_display_name: "王晋",
           speaker_id: "speaker-wj",
           start_at: "2026-05-08T11:00:00.000Z",

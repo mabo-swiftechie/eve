@@ -3,8 +3,10 @@ import { mkdir, rm } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import {
   type AudioFormat,
-  type SegmentRecord
+  type SegmentRecord,
+  type SentenceCue
 } from "@eve/shared";
+import type { RecognitionResult } from "./audio-utils";
 import { WavWriter, transcodeWavToFlac, writeJsonAtomic } from "./audio-utils";
 
 const SPEECH_SAMPLE_RATE = 16_000;
@@ -43,6 +45,7 @@ interface BuildEnrichedSegmentRecordOptions {
   jaTranslation: string | null;
   rawTranscript: string;
   recordingId: string;
+  sentenceCues?: SentenceCue[];
   speaker: string | null;
   speakerDisplayName: string;
   speakerId: string | null;
@@ -83,6 +86,7 @@ export function buildEnrichedSegmentRecord({
   jaTranslation,
   rawTranscript,
   recordingId,
+  sentenceCues,
   speaker,
   speakerDisplayName,
   speakerId,
@@ -102,6 +106,7 @@ export function buildEnrichedSegmentRecord({
     rawTranscript,
     recordingId,
     segmentId: randomUUID(),
+    sentenceCues,
     speaker,
     speakerDisplayName,
     speakerId,
@@ -179,6 +184,7 @@ function serializeSegmentRecord(
     raw_transcript: segment.rawTranscript,
     recording_id: segment.recordingId,
     segment_id: segment.segmentId,
+    sentence_cues: segment.sentenceCues ?? [],
     speaker: segment.speaker,
     speaker_display_name: segment.speakerDisplayName,
     speaker_id: segment.speakerId,
@@ -190,6 +196,123 @@ function serializeSegmentRecord(
 
 function getSegmentDurationMs(vadSampleCount: number): number {
   return Math.round((vadSampleCount / SPEECH_SAMPLE_RATE) * 1000);
+}
+
+export function buildSentenceCues({
+  result,
+  startOffsetMs,
+  vadSampleCount
+}: {
+  result: Pick<RecognitionResult, "text" | "timestamps" | "tokens">;
+  startOffsetMs: number;
+  vadSampleCount: number;
+}): SentenceCue[] {
+  const totalDurationMs = Math.max(
+    getSegmentDurationMs(vadSampleCount),
+    getTimestampCoverageMs(result.timestamps),
+    1_000
+  );
+  const timed = buildTimedSentenceCues({ result, startOffsetMs, totalDurationMs });
+  return timed.length > 0
+    ? timed
+    : buildFallbackSentenceCues({
+        startOffsetMs,
+        text: result.text.trim(),
+        totalDurationMs
+      });
+}
+
+function buildTimedSentenceCues({
+  result,
+  startOffsetMs,
+  totalDurationMs
+}: {
+  result: Pick<RecognitionResult, "text" | "timestamps" | "tokens">;
+  startOffsetMs: number;
+  totalDurationMs: number;
+}): SentenceCue[] {
+  if (result.tokens.length === 0 || result.tokens.length !== result.timestamps.length) {
+    return [];
+  }
+
+  const cues: SentenceCue[] = [];
+  let sentenceStartIndex = 0;
+  for (let index = 0; index < result.tokens.length; index += 1) {
+    const token = result.tokens[index] ?? "";
+    const shouldClose =
+      index === result.tokens.length - 1 || /[。！？!?；;]/u.test(token);
+    if (!shouldClose) {
+      continue;
+    }
+
+    const text = normalizeCueText(result.tokens.slice(sentenceStartIndex, index + 1).join(""));
+    if (text) {
+      const startMs = startOffsetMs + toMilliseconds(result.timestamps[sentenceStartIndex] ?? 0);
+      const endMs = Math.min(
+        startOffsetMs + totalDurationMs,
+        startOffsetMs +
+          toMilliseconds(
+            result.timestamps[index + 1] ??
+              (result.timestamps[index] ?? totalDurationMs / 1000) + 0.4
+          )
+      );
+      cues.push({
+        endMs: Math.max(endMs, startMs + 400),
+        startMs,
+        text
+      });
+    }
+    sentenceStartIndex = index + 1;
+  }
+  return cues.filter((cue) => cue.text.length > 0);
+}
+
+function buildFallbackSentenceCues({
+  startOffsetMs,
+  text,
+  totalDurationMs
+}: {
+  startOffsetMs: number;
+  text: string;
+  totalDurationMs: number;
+}): SentenceCue[] {
+  const sentences = text
+    .split(/(?<=[。！？!?；;])/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (sentences.length <= 1) {
+    return text
+      ? [
+          {
+            endMs: startOffsetMs + totalDurationMs,
+            startMs: startOffsetMs,
+            text
+          }
+        ]
+      : [];
+  }
+  const sliceMs = Math.max(Math.floor(totalDurationMs / sentences.length), 600);
+  return sentences.map((sentence, index) => ({
+    endMs:
+      index === sentences.length - 1
+        ? startOffsetMs + totalDurationMs
+        : startOffsetMs + sliceMs * (index + 1),
+    startMs: startOffsetMs + sliceMs * index,
+    text: sentence
+  }));
+}
+
+function normalizeCueText(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function toMilliseconds(value: number): number {
+  return Math.max(0, Math.round(value * 1000));
+}
+
+function getTimestampCoverageMs(timestamps: number[]): number {
+  const lastTimestamp = timestamps.at(-1);
+  return typeof lastTimestamp === "number" ? toMilliseconds(lastTimestamp + 0.4) : 0;
 }
 
 function formatSegmentName(value: Date): string {

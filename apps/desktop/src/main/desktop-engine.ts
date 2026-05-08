@@ -12,6 +12,7 @@ import {
 } from "./audio-utils";
 import {
   buildEnrichedSegmentRecord,
+  buildSentenceCues,
   createRecordingSegment,
   normalizeLanguage,
   persistRecordingSegment,
@@ -384,6 +385,11 @@ export class DesktopEngine {
         jaTranslation,
         rawTranscript: text,
         recordingId: this.segment.recordingId,
+        sentenceCues: buildSentenceCues({
+          result,
+          startOffsetMs: vadSegment.start,
+          vadSampleCount: vadSegment.samples.length
+        }),
         speaker,
         speakerDisplayName,
         speakerId,

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { DesktopSnapshot } from "@eve/shared";
+import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { improveTranscript, type DesktopSnapshot, type SentenceCue } from "@eve/shared";
 import { SpeakerProfilePanel } from "./speaker-profile-panel";
 import { createT } from "../lib/i18n";
 
@@ -33,9 +33,17 @@ export function ReviewLearn({
   const [audioDataUrl, setAudioDataUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioMissing, setAudioMissing] = useState(false);
+  const [pendingCue, setPendingCue] = useState<SentenceCue | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pauseTimerRef = useRef<number | null>(null);
   const activeSpeaker =
     snapshot.review.speakers.find((speaker) => speaker.speakerId === activeSegment?.speakerId) ??
     null;
+  const previewTranscript =
+    activeSegment && activeSpeaker
+      ? improveTranscript(activeSegment.rawTranscript, activeSegment.detectedLanguage, activeSpeaker)
+      : activeSegment?.improvedAutoTranscript ?? activeSegment?.rawTranscript ?? "";
+  const cueList = activeSegment?.sentenceCues ?? [];
 
   useEffect(() => {
     setSelectedSegmentId(segments[0]?.segmentId ?? null);
@@ -55,7 +63,24 @@ export function ReviewLearn({
     setAudioDataUrl(null);
     setAudioLoading(false);
     setAudioMissing(false);
+    setPendingCue(null);
   }, [activeSegment?.segmentId]);
+
+  useEffect(() => {
+    if (!audioDataUrl || !pendingCue || !audioRef.current) {
+      return;
+    }
+    void playCue(audioRef.current, pendingCue, pauseTimerRef);
+    setPendingCue(null);
+  }, [audioDataUrl, pendingCue]);
+
+  useEffect(() => {
+    return () => {
+      if (pauseTimerRef.current !== null) {
+        window.clearTimeout(pauseTimerRef.current);
+      }
+    };
+  }, []);
 
   if (!snapshot.review.selectedRecordingId) {
     return (
@@ -136,6 +161,7 @@ export function ReviewLearn({
                 label={t("reviewImprovedLabel")}
                 value={activeSegment.improvedAutoTranscript ?? ""}
               />
+              <LayerBlock label={t("reviewPreviewLabel")} value={previewTranscript} />
               <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
@@ -160,7 +186,35 @@ export function ReviewLearn({
                   </button>
                 </div>
                 {audioDataUrl ? (
-                  <audio className="mt-3 w-full" controls preload="metadata" src={audioDataUrl} />
+                  <audio
+                    ref={audioRef}
+                    className="mt-3 w-full"
+                    controls
+                    preload="metadata"
+                    src={audioDataUrl}
+                  />
+                ) : null}
+                {cueList.length > 0 ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
+                      {t("reviewSentenceCuesTitle")}
+                    </p>
+                    <div className="grid gap-2">
+                      {cueList.map((cue, index) => (
+                        <button
+                          key={`${cue.startMs}:${cue.endMs}:${index}`}
+                          className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-left text-xs leading-5 text-[color:var(--foreground)]"
+                          type="button"
+                          onClick={() => void jumpToCue(cue)}
+                        >
+                          <span className="font-semibold text-[color:var(--muted)]">
+                            {formatCueTime(cue.startMs)}
+                          </span>
+                          <span className="ml-2">{cue.text}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ) : null}
               </div>
               <label className="block space-y-1">
@@ -226,6 +280,40 @@ export function ReviewLearn({
       setAudioLoading(false);
     }
   }
+
+  async function jumpToCue(cue: SentenceCue): Promise<void> {
+    const currentAudio = audioRef.current;
+    if (audioDataUrl && currentAudio) {
+      await playCue(currentAudio, cue, pauseTimerRef);
+      return;
+    }
+    setPendingCue(cue);
+    await loadAudio();
+  }
+}
+
+async function playCue(
+  audio: HTMLAudioElement,
+  cue: SentenceCue,
+  pauseTimerRef: MutableRefObject<number | null>
+): Promise<void> {
+  if (pauseTimerRef.current !== null) {
+    window.clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = null;
+  }
+  audio.currentTime = cue.startMs / 1000;
+  await audio.play();
+  pauseTimerRef.current = window.setTimeout(() => {
+    audio.pause();
+    pauseTimerRef.current = null;
+  }, Math.max(cue.endMs - cue.startMs, 500));
+}
+
+function formatCueTime(startMs: number): string {
+  const totalSeconds = Math.floor(startMs / 1000);
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
 }
 
 function LayerBlock({ label, value }: { label: string; value: string }) {

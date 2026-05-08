@@ -88,6 +88,12 @@ export interface RecordingHistoryItem {
   textPreview: string;
 }
 
+export interface SentenceCue {
+  endMs: number;
+  startMs: number;
+  text: string;
+}
+
 export type SegmentRecordStatus =
   | "raw_only"
   | "auto_improved"
@@ -104,6 +110,7 @@ export interface SegmentRecord {
   rawTranscript: string;
   recordingId: string;
   segmentId: string;
+  sentenceCues?: SentenceCue[];
   speakerDisplayName: string;
   speakerId: string | null;
   startAt: string;
@@ -271,3 +278,5 @@ export const DEFAULT_STATUS: RecorderStatusSnapshot = {
   vadReady: false,
   waveformBins: Array.from({ length: 48 }, () => 0)
 };
+
+export { improveTranscript } from "./transcript-improvement";

@@ -26,7 +26,7 @@ const resolveSherpaModulePath = () => {
   return "sherpa-onnx-node";
 };
 
-type RecognitionResult = {
+export type RecognitionResult = {
   emotion: string;
   event: string;
   lang: string;

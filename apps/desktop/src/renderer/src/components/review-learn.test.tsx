@@ -25,8 +25,10 @@ describe("ReviewLearn", () => {
 
     expect(markup).toContain("长劲短劲都有，这设计吧。");
     expect(markup).toContain("长句短句都有，这设计吧。");
+    expect(markup).toContain("Preview with confirmed rules");
     expect(markup).toContain("Save manual correction");
     expect(markup).toContain("Load segment audio");
+    expect(markup).toContain("Sentence jump points");
     expect(markup).toContain("王晋");
     expect(markup).toContain("Review candidates");
   });
@@ -43,6 +45,13 @@ function createSnapshot(): DesktopSnapshot {
     rawTranscript: "长劲短劲都有，这设计吧。",
     recordingId: "recording-1",
     segmentId: "segment-1",
+    sentenceCues: [
+      {
+        endMs: 2200,
+        startMs: 0,
+        text: "长劲短劲都有，这设计吧。"
+      }
+    ],
     speakerDisplayName: "王晋",
     speakerId: "speaker-wj",
     startAt: "2026-05-08T11:00:00.000Z",

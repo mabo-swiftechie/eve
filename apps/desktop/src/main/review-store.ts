@@ -1,6 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
 import { extname, join, resolve } from "node:path";
-import type { RuleCandidate, SegmentRecord } from "@eve/shared";
+import type { RuleCandidate, SegmentRecord, SentenceCue } from "@eve/shared";
 import { writeJsonAtomic } from "./audio-utils";
 
 interface SegmentPayload {
@@ -13,6 +13,7 @@ interface SegmentPayload {
   raw_transcript?: unknown;
   recording_id?: unknown;
   segment_id?: unknown;
+  sentence_cues?: unknown;
   speaker_display_name?: unknown;
   speaker_id?: unknown;
   start_at?: unknown;
@@ -178,6 +179,7 @@ function parseSegment(
     rawTranscript,
     recordingId: toText(value.recording_id),
     segmentId,
+    sentenceCues: parseSentenceCues(value.sentence_cues),
     speakerDisplayName: toText(value.speaker_display_name) || "Speaker A",
     speakerId: toNullableText(value.speaker_id),
     sourceJsonPath,
@@ -201,6 +203,35 @@ function parseStatus(value: unknown): SegmentRecord["status"] {
 function toNullableText(value: unknown): string | null {
   const text = toText(value).trim();
   return text.length > 0 ? text : null;
+}
+
+function parseSentenceCues(value: unknown): SentenceCue[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined;
+  }
+  const cues = value
+    .map((item) => {
+      if (!isObject(item)) {
+        return null;
+      }
+      const text = toText(item.text).trim();
+      const startMs = toNumber(item.start_ms);
+      const endMs = toNumber(item.end_ms);
+      if (!text || startMs === null || endMs === null) {
+        return null;
+      }
+      return {
+        endMs,
+        startMs,
+        text
+      };
+    })
+    .filter((cue): cue is SentenceCue => cue !== null);
+  return cues.length > 0 ? cues : undefined;
+}
+
+function toNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
 function getAudioMimeType(audioPath: string): string | null {

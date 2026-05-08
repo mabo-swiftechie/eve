@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS, DEFAULT_STATUS, type AppSettings } from "@eve/shared";
 
+type MockRecognitionResult = {
+  lang: string;
+  text: string;
+  timestamps: number[];
+  tokens: string[];
+};
+
 const modelManagerState = {
   requireFfmpeg: vi.fn(async () => {}),
   ensureRuntimeAssets: vi.fn(async () => {}),
@@ -26,7 +33,9 @@ const writeJsonAtomic = vi.fn<(path: string, payload: unknown) => Promise<void>>
   async () => {}
 );
 const vadSegments: Array<{ samples: Float32Array; start: number }> = [];
-const decodeSegmentMock = vi.fn(() => ({ lang: "zh", text: "" }));
+const decodeSegmentMock = vi.fn(
+  (): MockRecognitionResult => ({ lang: "zh", text: "", timestamps: [], tokens: [] })
+);
 const speakerIdentifierState = {
   identify: vi.fn(() => ({ confidence: 0.98, name: "王晋" })),
   initialize: vi.fn(() => true),
@@ -36,6 +45,12 @@ const speakerIdentifierState = {
 
 vi.mock("electron-log/main", () => ({
   default: { error: vi.fn(), info: vi.fn(), warn: vi.fn() }
+}));
+
+vi.mock("electron", () => ({
+  app: {
+    getPath: vi.fn(() => "/tmp")
+  }
 }));
 
 vi.mock("./audio-utils", () => ({
@@ -70,7 +85,7 @@ vi.mock("./audio-utils", () => ({
   rms: vi.fn(() => 0),
   rmsToDb: vi.fn(() => -80),
   transcodeWavToFlac,
-  transcribeAudioFile: vi.fn(async () => ({ lang: "zh", text: "hello" })),
+  transcribeAudioFile: vi.fn(async () => ({ lang: "zh", text: "hello", timestamps: [], tokens: [] })),
   writeJsonAtomic
 }));
 
@@ -108,7 +123,7 @@ describe("DesktopEngine", () => {
       vadReady: true
     });
     vadSegments.length = 0;
-    decodeSegmentMock.mockReturnValue({ lang: "zh", text: "" });
+    decodeSegmentMock.mockReturnValue({ lang: "zh", text: "", timestamps: [], tokens: [] });
     speakerIdentifierState.identify.mockReturnValue({
       confidence: 0.98,
       name: "王晋"
@@ -194,7 +209,9 @@ describe("DesktopEngine", () => {
     vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
     decodeSegmentMock.mockReturnValue({
       lang: "zh",
-      text: "启用之后开始转写。"
+      text: "启用之后开始转写。",
+      timestamps: [0, 0.5],
+      tokens: ["启用之后开始转写。"]
     });
 
     await engine.pushAudioChunk({
@@ -271,7 +288,9 @@ describe("DesktopEngine", () => {
     vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
     decodeSegmentMock.mockReturnValue({
       lang: "zh",
-      text: "长劲短劲都有，Qwen3 也有。"
+      text: "长劲短劲都有，Qwen3 也有。",
+      timestamps: [0, 0.7, 1.4, 2.1],
+      tokens: ["长劲短劲", "都有。", "Qwen3", "也有。"]
     });
 
     await engine.startRecording();
@@ -308,6 +327,10 @@ describe("DesktopEngine", () => {
         speaker: "王晋",
         speaker_display_name: "王晋",
         speaker_id: "speaker-wj",
+        sentence_cues: [
+          { endMs: 1400, startMs: 0, text: "长劲短劲都有。" },
+          { endMs: 2500, startMs: 1400, text: "Qwen3也有。" }
+        ],
         start_at: expect.any(String),
         status: "translation_ready"
       })
@@ -340,7 +363,9 @@ describe("DesktopEngine", () => {
     vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
     decodeSegmentMock.mockReturnValue({
       lang: "zh",
-      text: "翻译失败也不能中断。"
+      text: "翻译失败也不能中断。",
+      timestamps: [0],
+      tokens: ["翻译失败也不能中断。"]
     });
 
     await engine.startRecording();

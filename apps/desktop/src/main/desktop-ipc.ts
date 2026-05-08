@@ -151,7 +151,7 @@ export function registerDesktopIpcHandlers({
   );
   ipcMain.handle("desktop:update-speaker-profile", async (_event, profile: SpeakerProfile) => {
     await updateSpeakerProfile(profile);
-    return getSnapshot({ reviewRecordingId: null });
+    return getSnapshot();
   });
   ipcMain.handle("desktop:set-window-pinned", async (_event, pinned: boolean) => {
     applyWindowPinnedState(Boolean(pinned));

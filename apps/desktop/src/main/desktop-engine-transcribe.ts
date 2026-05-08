@@ -1,7 +1,11 @@
 import log from "electron-log/main";
 import { readdir } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
-import { buildEnrichedSegmentRecord, normalizeLanguage } from "./desktop-engine-segment-output";
+import {
+  buildEnrichedSegmentRecord,
+  buildSentenceCues,
+  normalizeLanguage
+} from "./desktop-engine-segment-output";
 import { transcribeAudioFile, writeJsonAtomic } from "./audio-utils";
 import type { SegmentTranslator } from "./segment-translator";
 
@@ -60,6 +64,11 @@ export async function transcribeAudioDirectory({
       jaTranslation,
       rawTranscript,
       recordingId,
+      sentenceCues: buildSentenceCues({
+        result,
+        startOffsetMs: 0,
+        vadSampleCount: 0
+      }),
       speaker: null,
       speakerDisplayName: "Speaker A",
       speakerId: null,
@@ -87,6 +96,7 @@ export async function transcribeAudioDirectory({
           raw_transcript: speechSegment.rawTranscript,
           recording_id: speechSegment.recordingId,
           segment_id: speechSegment.segmentId,
+          sentence_cues: speechSegment.sentenceCues ?? [],
           speaker: speechSegment.speaker,
           speaker_display_name: speechSegment.speakerDisplayName,
           speaker_id: speechSegment.speakerId,
