@@ -170,11 +170,45 @@ describe("DesktopEngine", () => {
     await engine.stopRecording();
 
     expect(modelManagerState.requireFfmpeg).toHaveBeenCalledTimes(1);
-    expect(transcodeWavToFlac).toHaveBeenCalledTimes(2);
+    expect(transcodeWavToFlac).toHaveBeenCalledTimes(1);
     expect(writeJsonAtomic).toHaveBeenCalledTimes(1);
     const firstCall = writeJsonAtomic.mock.calls.at(0);
     expect(firstCall).toBeDefined();
     expect(String(firstCall?.[0])).toContain("/tmp/recordings-a/");
+  });
+
+  it("creates a recognizer when ASR is enabled during an active recording", async () => {
+    const { DesktopEngine } = await import("./desktop-engine");
+    const engine = new DesktopEngine(() => {});
+
+    await engine.applySettings(
+      buildSettings({ audioFormat: "wav", disableAsr: true, outputDir: "/tmp/no-asr" })
+    );
+    await engine.startRecording();
+    await engine.applySettings(
+      buildSettings({ audioFormat: "wav", disableAsr: false, outputDir: "/tmp/with-asr" })
+    );
+
+    vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
+    decodeSegmentMock.mockReturnValue({
+      lang: "zh",
+      text: "启用之后开始转写。"
+    });
+
+    await engine.pushAudioChunk({
+      deviceId: "default",
+      deviceLabel: "Built-in Mic",
+      rms: 0.2,
+      sampleRate: 16_000,
+      samples: new Float32Array(512)
+    });
+    await engine.stopRecording();
+
+    expect(writeJsonAtomic).toHaveBeenCalledTimes(1);
+    expect(engine.getStatus()).toMatchObject({
+      asrEnabled: true,
+      recording: false
+    });
   });
 
   it("persists only VAD speech segments into the saved audio file", async () => {
@@ -276,6 +310,59 @@ describe("DesktopEngine", () => {
         status: "translation_ready"
       })
     ]);
+  });
+
+  it("continues recording when zh-ja translation fails", async () => {
+    const improveTranscript = vi.fn((text: string) => `improved:${text}`);
+    const translateChineseToJapanese = vi.fn(async () => {
+      throw new Error("translator failed");
+    });
+    const findProfileByName = vi.fn(async () => null);
+    modelManagerState.getStatus.mockReturnValue({
+      downloading: false,
+      ffmpegAvailable: true,
+      senseVoiceReady: true,
+      speakerEmbeddingReady: false,
+      vadReady: true
+    });
+    const { DesktopEngine } = await import("./desktop-engine");
+    const engine = new DesktopEngine(() => {}, {
+      improveTranscript,
+      segmentTranslator: { translateChineseToJapanese },
+      speakerProfileStore: {
+        findProfileByName,
+        getProfile: vi.fn(async () => null)
+      }
+    });
+
+    vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
+    decodeSegmentMock.mockReturnValue({
+      lang: "zh",
+      text: "翻译失败也不能中断。"
+    });
+
+    await engine.startRecording();
+    await engine.pushAudioChunk({
+      deviceId: "default",
+      deviceLabel: "Built-in Mic",
+      rms: 0.3,
+      sampleRate: 16_000,
+      samples: new Float32Array(512)
+    });
+    await engine.stopRecording();
+
+    const payload = writeJsonAtomic.mock.calls.at(-1)?.[1] as {
+      speech_segments?: Array<Record<string, unknown>>;
+    };
+    expect(translateChineseToJapanese).toHaveBeenCalledTimes(1);
+    expect(payload.speech_segments?.[0]).toEqual(
+      expect.objectContaining({
+        improved_auto_transcript: "improved:翻译失败也不能中断。",
+        ja_translation: null,
+        raw_transcript: "翻译失败也不能中断。"
+      })
+    );
+    expect(engine.getStatus().error).toBeNull();
   });
 });
 
