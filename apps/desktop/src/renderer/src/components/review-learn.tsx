@@ -33,6 +33,7 @@ export function ReviewLearn({
   const [audioDataUrl, setAudioDataUrl] = useState<string | null>(null);
   const [audioLoading, setAudioLoading] = useState(false);
   const [audioMissing, setAudioMissing] = useState(false);
+  const [activeCueKey, setActiveCueKey] = useState<string | null>(null);
   const [pendingCue, setPendingCue] = useState<SentenceCue | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pauseTimerRef = useRef<number | null>(null);
@@ -63,6 +64,7 @@ export function ReviewLearn({
     setAudioDataUrl(null);
     setAudioLoading(false);
     setAudioMissing(false);
+    setActiveCueKey(null);
     setPendingCue(null);
   }, [activeSegment?.segmentId]);
 
@@ -190,8 +192,25 @@ export function ReviewLearn({
                     ref={audioRef}
                     className="mt-3 w-full"
                     controls
+                    onEnded={() => setActiveCueKey(null)}
                     preload="metadata"
                     src={audioDataUrl}
+                    onPause={() => {
+                      if (audioRef.current?.ended) {
+                        setActiveCueKey(null);
+                      }
+                    }}
+                    onTimeUpdate={() => {
+                      const currentAudio = audioRef.current;
+                      if (!currentAudio) {
+                        return;
+                      }
+                      const currentCue = cueList.find((cue) => {
+                        const timeMs = Math.round(currentAudio.currentTime * 1000);
+                        return timeMs >= cue.startMs && timeMs <= cue.endMs;
+                      });
+                      setActiveCueKey(currentCue ? cueKey(currentCue) : null);
+                    }}
                   />
                 ) : null}
                 {cueList.length > 0 ? (
@@ -203,7 +222,12 @@ export function ReviewLearn({
                       {cueList.map((cue, index) => (
                         <button
                           key={`${cue.startMs}:${cue.endMs}:${index}`}
-                          className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-left text-xs leading-5 text-[color:var(--foreground)]"
+                          aria-pressed={activeCueKey === cueKey(cue)}
+                          className={
+                            activeCueKey === cueKey(cue)
+                              ? "rounded-lg border border-[color:var(--ring)] bg-[color:var(--surface)] px-3 py-2 text-left text-xs leading-5 text-[color:var(--foreground)] ring-1 ring-[color:var(--ring)]"
+                              : "rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] px-3 py-2 text-left text-xs leading-5 text-[color:var(--foreground)]"
+                          }
                           type="button"
                           onClick={() => void jumpToCue(cue)}
                         >
@@ -283,6 +307,7 @@ export function ReviewLearn({
 
   async function jumpToCue(cue: SentenceCue): Promise<void> {
     const currentAudio = audioRef.current;
+    setActiveCueKey(cueKey(cue));
     if (audioDataUrl && currentAudio) {
       await playCue(currentAudio, cue, pauseTimerRef);
       return;
@@ -290,6 +315,10 @@ export function ReviewLearn({
     setPendingCue(cue);
     await loadAudio();
   }
+}
+
+function cueKey(cue: SentenceCue): string {
+  return `${cue.startMs}:${cue.endMs}:${cue.text}`;
 }
 
 async function playCue(

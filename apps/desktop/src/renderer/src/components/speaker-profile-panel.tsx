@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { SpeakerProfile } from "@eve/shared";
+import type { RuleCandidateResolution, SpeakerProfile } from "@eve/shared";
 import { createT } from "../lib/i18n";
 
 export function SpeakerProfilePanel({
@@ -91,18 +91,31 @@ export function SpeakerProfilePanel({
                       {candidate.language.toUpperCase()}
                     </span>
                     <span className="text-[10px] uppercase tracking-[0.12em] text-[color:var(--muted)]">
-                      {candidate.status}
+                      {describeCandidateStatus(candidate, t)}
                     </span>
                   </div>
                   <p className="mt-2 text-[color:var(--muted)]">{candidate.fromText}</p>
                   <p className="mt-1 text-[color:var(--foreground)]">{candidate.toText}</p>
                   <div className="mt-3 flex gap-2">
                     <CandidateButton
-                      label={t("reviewSpeakerConfirmCandidate")}
+                      label={t("reviewSpeakerApplyCandidate")}
                       onClick={() =>
                         void saveCandidateStatus({
                           actions,
                           candidateId: candidate.candidateId,
+                          confirmationMode: "applied",
+                          nextStatus: "confirmed",
+                          profile
+                        })
+                      }
+                    />
+                    <CandidateButton
+                      label={t("reviewSpeakerRecordCandidate")}
+                      onClick={() =>
+                        void saveCandidateStatus({
+                          actions,
+                          candidateId: candidate.candidateId,
+                          confirmationMode: "recorded",
                           nextStatus: "confirmed",
                           profile
                         })
@@ -165,11 +178,13 @@ function CandidateButton({
 async function saveCandidateStatus({
   actions,
   candidateId,
+  confirmationMode,
   nextStatus,
   profile
 }: {
   actions: { updateSpeakerProfile: (profile: SpeakerProfile) => Promise<void> };
   candidateId: string;
+  confirmationMode?: RuleCandidateResolution;
   nextStatus: "confirmed" | "rejected";
   profile: SpeakerProfile;
 }) {
@@ -183,11 +198,12 @@ async function saveCandidateStatus({
 
       const nextCandidate = {
         ...candidate,
+        confirmationMode,
         status: nextStatus,
         updatedAt
       };
       draft.ruleCandidates.push(nextCandidate);
-      if (nextStatus === "confirmed") {
+      if (nextStatus === "confirmed" && confirmationMode === "applied") {
         if (candidate.language === "ja") {
           draft.correctionLexiconJa[nextCandidate.fromText] = nextCandidate.toText;
         } else if (candidate.language === "zh") {
@@ -209,4 +225,20 @@ async function saveCandidateStatus({
     ruleCandidates: nextProfile.ruleCandidates,
     updatedAt
   });
+}
+
+function describeCandidateStatus(
+  candidate: SpeakerProfile["ruleCandidates"][number],
+  t: ReturnType<typeof createT>
+): string {
+  if (candidate.status === "confirmed" && candidate.confirmationMode === "applied") {
+    return t("reviewSpeakerAppliedStatus");
+  }
+  if (candidate.status === "confirmed" && candidate.confirmationMode === "recorded") {
+    return t("reviewSpeakerRecordedStatus");
+  }
+  if (candidate.status === "rejected") {
+    return t("reviewSpeakerRejectedStatus");
+  }
+  return t("reviewSpeakerPendingStatus");
 }

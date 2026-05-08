@@ -118,9 +118,11 @@ export interface SegmentRecord {
 }
 
 export type RuleCandidateStatus = "confirmed" | "pending" | "rejected";
+export type RuleCandidateResolution = "applied" | "recorded";
 
 export interface RuleCandidate {
   candidateId: string;
+  confirmationMode?: RuleCandidateResolution;
   createdAt: string;
   fromText: string;
   language: string;

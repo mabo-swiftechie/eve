@@ -31,6 +31,8 @@ describe("ReviewLearn", () => {
     expect(markup).toContain("Sentence jump points");
     expect(markup).toContain("王晋");
     expect(markup).toContain("Review candidates");
+    expect(markup).toContain("Apply");
+    expect(markup).toContain("Keep note");
   });
 });
 
