@@ -14,6 +14,7 @@ export interface EngineAssetStatus {
   downloading: boolean;
   ffmpegAvailable: boolean;
   senseVoiceReady: boolean;
+  speakerEmbeddingReady: boolean;
   vadReady: boolean;
 }
 
@@ -29,12 +30,18 @@ const VAD = {
   url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx"
 } as const;
 
+const SPEAKER_EMBEDDING_MODEL = {
+  file: "3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx",
+  url: "https://github.com/k2-fsa/sherpa-onnx/releases/download/speaker-recongition-models/3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx"
+} as const;
+
 const INITIAL_STATUS: EngineAssetStatus = {
   downloadMessage: "",
   downloadProgress: null,
   downloading: false,
   ffmpegAvailable: false,
   senseVoiceReady: false,
+  speakerEmbeddingReady: false,
   vadReady: false
 };
 
@@ -67,6 +74,10 @@ export class ModelManager {
 
   getVadModelPath(): string {
     return join(this.baseDirectory, VAD.file);
+  }
+
+  getSpeakerEmbeddingModelPath(): string {
+    return join(this.baseDirectory, SPEAKER_EMBEDDING_MODEL.file);
   }
 
   onStatus(listener: StatusListener): () => void {
@@ -106,11 +117,19 @@ export class ModelManager {
     if (!this.status.vadReady) {
       await this.downloadFile(VAD.url, this.getVadModelPath(), "Downloading VAD model");
     }
+    if (!this.status.speakerEmbeddingReady) {
+      await this.downloadFile(
+        SPEAKER_EMBEDDING_MODEL.url,
+        this.getSpeakerEmbeddingModelPath(),
+        "Downloading speaker embedding model"
+      );
+    }
   }
 
   private refreshInstalledState(): void {
     this.patchStatus({
       senseVoiceReady: this.hasAsrModelFiles(),
+      speakerEmbeddingReady: existsSync(this.getSpeakerEmbeddingModelPath()),
       vadReady: existsSync(this.getVadModelPath())
     });
   }
