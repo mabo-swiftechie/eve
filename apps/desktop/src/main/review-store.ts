@@ -62,6 +62,29 @@ export class ReviewStore {
     return sources.map(({ sourceJsonPath: _ignored, ...segment }) => segment);
   }
 
+  async loadSegmentAudioDataUrl(
+    recordingDirectory: string,
+    segmentId: string
+  ): Promise<string | null> {
+    const sources = await this.listSegmentSources(recordingDirectory);
+    const target = sources.find((segment) => segment.segmentId === segmentId);
+    if (!target?.audioClipRef) {
+      return null;
+    }
+
+    const mimeType = getAudioMimeType(target.audioClipRef);
+    if (!mimeType) {
+      return null;
+    }
+
+    const audioBuffer = await readFile(target.audioClipRef).catch(() => null);
+    if (!audioBuffer) {
+      return null;
+    }
+
+    return `data:${mimeType};base64,${audioBuffer.toString("base64")}`;
+  }
+
   async saveManualCorrection(
     recordingDirectory: string,
     segmentId: string,
@@ -178,4 +201,21 @@ function parseStatus(value: unknown): SegmentRecord["status"] {
 function toNullableText(value: unknown): string | null {
   const text = toText(value).trim();
   return text.length > 0 ? text : null;
+}
+
+function getAudioMimeType(audioPath: string): string | null {
+  const extension = extname(audioPath).toLowerCase();
+  if (extension === ".flac") {
+    return "audio/flac";
+  }
+  if (extension === ".m4a") {
+    return "audio/mp4";
+  }
+  if (extension === ".mp3") {
+    return "audio/mpeg";
+  }
+  if (extension === ".wav") {
+    return "audio/wav";
+  }
+  return null;
 }

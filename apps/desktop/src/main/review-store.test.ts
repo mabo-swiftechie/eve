@@ -2,7 +2,6 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReviewStore } from "./review-store";
 
 const writeJsonAtomic = vi.fn(async (path: string, payload: unknown) => {
   await writeFile(path, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
@@ -11,6 +10,8 @@ const writeJsonAtomic = vi.fn(async (path: string, payload: unknown) => {
 vi.mock("./audio-utils", () => ({
   writeJsonAtomic
 }));
+
+const { ReviewStore } = await import("./review-store");
 
 const tempDirs: string[] = [];
 
@@ -85,6 +86,18 @@ describe("ReviewStore", () => {
         toText: "长句短句都有，这设计吧。"
       })
     );
+  });
+
+  it("loads segment audio as a data url", async () => {
+    const directory = await createReviewDirectory();
+    const audioPath = join(directory, "eve_20260508_110000.wav");
+    const store = new ReviewStore();
+
+    await writeFile(audioPath, Buffer.from("RIFFtest-wave"), "utf8");
+
+    const dataUrl = await store.loadSegmentAudioDataUrl(directory, "segment-1");
+
+    expect(dataUrl).toMatch(/^data:audio\/wav;base64,/);
   });
 });
 

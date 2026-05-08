@@ -140,12 +140,13 @@ vi.mock("./updater", () => ({
 }));
 
 describe("desktop:get-snapshot IPC handler", () => {
-  it("returns required live stage and review snapshots", async () => {
+  it("returns required stage snapshots and review audio IPC", async () => {
     ipcHandlers.clear();
     await import("./index");
 
     const getSnapshotHandler = ipcHandlers.get("desktop:get-snapshot");
     expect(getSnapshotHandler).toBeTypeOf("function");
+    expect(ipcHandlers.get("desktop:get-review-audio")).toBeTypeOf("function");
 
     const snapshot = await getSnapshotHandler?.();
     expect(snapshot).toMatchObject({

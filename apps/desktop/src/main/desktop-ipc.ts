@@ -23,6 +23,7 @@ interface RegisterDesktopIpcOptions {
   getMainWindow: () => BrowserWindow | null;
   getSnapshot: (options?: SnapshotRequestOptions) => Promise<DesktopSnapshot>;
   openMicrophonePrivacySettings: () => Promise<boolean>;
+  loadReviewAudio: (recordingId: string, segmentId: string) => Promise<string | null>;
   pickDefaultPath: () => string;
   pushAudioChunk: (payload: {
     deviceId: string;
@@ -54,6 +55,7 @@ export function registerDesktopIpcHandlers({
   getMainWindow,
   getSnapshot,
   openMicrophonePrivacySettings,
+  loadReviewAudio,
   pickDefaultPath,
   pushAudioChunk,
   requestMicrophonePermission,
@@ -134,6 +136,12 @@ export function registerDesktopIpcHandlers({
   ipcMain.handle("desktop:open-review", async (_event, recordingId: string) => {
     return getSnapshot({ refreshHistory: true, reviewRecordingId: recordingId });
   });
+  ipcMain.handle(
+    "desktop:get-review-audio",
+    async (_event, recordingId: string, segmentId: string) => {
+      return loadReviewAudio(recordingId, segmentId);
+    }
+  );
   ipcMain.handle(
     "desktop:save-manual-correction",
     async (_event, recordingId: string, segmentId: string, transcript: string) => {

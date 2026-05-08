@@ -8,6 +8,7 @@ export function ReviewLearn({
   snapshot
 }: {
   actions: {
+    loadReviewAudio: (recordingId: string, segmentId: string) => Promise<string | null>;
     saveManualCorrection: (
       recordingId: string,
       segmentId: string,
@@ -29,6 +30,9 @@ export function ReviewLearn({
   const [draftManual, setDraftManual] = useState(
     activeSegment?.manualCorrectedTranscript ?? activeSegment?.improvedAutoTranscript ?? ""
   );
+  const [audioDataUrl, setAudioDataUrl] = useState<string | null>(null);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [audioMissing, setAudioMissing] = useState(false);
   const activeSpeaker =
     snapshot.review.speakers.find((speaker) => speaker.speakerId === activeSegment?.speakerId) ??
     null;
@@ -46,6 +50,12 @@ export function ReviewLearn({
     activeSegment?.improvedAutoTranscript,
     activeSegment?.segmentId
   ]);
+
+  useEffect(() => {
+    setAudioDataUrl(null);
+    setAudioLoading(false);
+    setAudioMissing(false);
+  }, [activeSegment?.segmentId]);
 
   if (!snapshot.review.selectedRecordingId) {
     return (
@@ -126,6 +136,33 @@ export function ReviewLearn({
                 label={t("reviewImprovedLabel")}
                 value={activeSegment.improvedAutoTranscript ?? ""}
               />
+              <div className="rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
+                      {t("reviewAudioLabel")}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-[color:var(--muted)]">
+                      {audioDataUrl
+                        ? t("reviewAudioReady")
+                        : audioMissing
+                          ? t("reviewAudioMissing")
+                          : t("reviewAudioDescription")}
+                    </p>
+                  </div>
+                  <button
+                    className="inline-flex h-8 items-center justify-center rounded-lg bg-[color:var(--surface)] px-3.5 text-xs font-medium text-[color:var(--foreground)] ring-1 ring-[color:var(--border)] shadow-[var(--shadow-raised-sm)]"
+                    disabled={!snapshot.review.selectedRecordingId || audioLoading}
+                    type="button"
+                    onClick={() => void loadAudio()}
+                  >
+                    {audioLoading ? t("reviewAudioLoading") : t("reviewAudioAction")}
+                  </button>
+                </div>
+                {audioDataUrl ? (
+                  <audio className="mt-3 w-full" controls preload="metadata" src={audioDataUrl} />
+                ) : null}
+              </div>
               <label className="block space-y-1">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
                   {t("reviewManualLabel")}
@@ -171,6 +208,24 @@ export function ReviewLearn({
       </div>
     </section>
   );
+
+  async function loadAudio(): Promise<void> {
+    if (!snapshot.review.selectedRecordingId || !activeSegment) {
+      return;
+    }
+    setAudioLoading(true);
+    setAudioMissing(false);
+    try {
+      const nextAudioDataUrl = await actions.loadReviewAudio(
+        snapshot.review.selectedRecordingId,
+        activeSegment.segmentId
+      );
+      setAudioDataUrl(nextAudioDataUrl);
+      setAudioMissing(nextAudioDataUrl === null);
+    } finally {
+      setAudioLoading(false);
+    }
+  }
 }
 
 function LayerBlock({ label, value }: { label: string; value: string }) {

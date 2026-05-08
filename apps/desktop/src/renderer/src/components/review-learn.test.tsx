@@ -15,6 +15,7 @@ describe("ReviewLearn", () => {
     const markup = renderToStaticMarkup(
       <ReviewLearn
         actions={{
+          loadReviewAudio: vi.fn(async () => null),
           saveManualCorrection: vi.fn(async () => undefined),
           updateSpeakerProfile: vi.fn(async () => undefined)
         }}
@@ -25,6 +26,7 @@ describe("ReviewLearn", () => {
     expect(markup).toContain("长劲短劲都有，这设计吧。");
     expect(markup).toContain("长句短句都有，这设计吧。");
     expect(markup).toContain("Save manual correction");
+    expect(markup).toContain("Load segment audio");
     expect(markup).toContain("王晋");
     expect(markup).toContain("Review candidates");
   });

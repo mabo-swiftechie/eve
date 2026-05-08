@@ -184,6 +184,11 @@ export const desktopActions = {
       )
     );
   },
+  async loadReviewAudio(recordingId: string, segmentId: string): Promise<string | null> {
+    return withToast(createT(snapshot.settings.desktop.language)("errorLoadReviewAudioFailed"), () =>
+      bridge?.getReviewAudio(recordingId, segmentId) ?? rejectBridgeCall()
+    );
+  },
   async pickDirectory(defaultPath?: string): Promise<string | null> {
     return withToast(createT(snapshot.settings.desktop.language)("errorOpenDirectoryPickerFailed"), () =>
       bridge?.pickDirectory(defaultPath) ?? rejectBridgeCall()

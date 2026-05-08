@@ -87,6 +87,7 @@ export function App() {
             {mode === "review" ? (
               <ReviewLearn
                 actions={{
+                  loadReviewAudio: desktopActions.loadReviewAudio,
                   saveManualCorrection: desktopActions.saveManualCorrection,
                   updateSpeakerProfile: desktopActions.updateSpeakerProfile
                 }}

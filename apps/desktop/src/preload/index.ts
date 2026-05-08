@@ -11,6 +11,7 @@ export interface DesktopBridgeApi {
   bootstrap: () => Promise<DesktopSnapshot>;
   captureError: (message: string) => Promise<DesktopSnapshot>;
   closeWindow: () => Promise<void>;
+  getReviewAudio: (recordingId: string, segmentId: string) => Promise<string | null>;
   minimizeWindow: () => Promise<void>;
   openReview: (recordingId: string) => Promise<DesktopSnapshot>;
   pushAudioChunk: (payload: {
@@ -44,6 +45,8 @@ const api: DesktopBridgeApi = {
   bootstrap: () => ipcRenderer.invoke("desktop:get-snapshot"),
   captureError: (message) => ipcRenderer.invoke("desktop:capture-error", message),
   closeWindow: () => ipcRenderer.invoke("desktop:close-window"),
+  getReviewAudio: (recordingId, segmentId) =>
+    ipcRenderer.invoke("desktop:get-review-audio", recordingId, segmentId),
   minimizeWindow: () => ipcRenderer.invoke("desktop:minimize-window"),
   openReview: (recordingId) => ipcRenderer.invoke("desktop:open-review", recordingId),
   pushAudioChunk: ({ samples, ...payload }) => {

@@ -367,6 +367,9 @@ registerDesktopIpcHandlers({
   getMainWindow: () => mainWindow,
   getSnapshot,
   openMicrophonePrivacySettings,
+  loadReviewAudio: async (recordingId, segmentId) => {
+    return reviewStore.loadSegmentAudioDataUrl(recordingId, segmentId);
+  },
   pickDefaultPath: () => process.cwd(),
   pushAudioChunk: async (payload) => {
     await engine?.pushAudioChunk(payload);
