@@ -14,6 +14,9 @@ Eve Recorder (formerly `eve`, short for `eavesdropper`) is a tray-first desktop 
 - WAV and FLAC output
 - Batch transcription of existing WAV/FLAC recordings
 - Recording history viewer grouped by day
+- Live Stage mode for stable Chinese/Japanese event display
+- Review & Learn mode with raw / auto-improved / manual transcript layers
+- Speaker profile storage with candidate correction rules
 - System tray app with launch-at-login, start-on-launch, and auto-update
 - Bilingual UI (English / 中文)
 - Light / Dark / System theme
@@ -33,6 +36,14 @@ The packaged app checks for updates automatically and installs them on quit.
 ## Runtime Notes
 
 - Eve Recorder downloads Qwen3 ASR and Silero VAD model files on first use and caches them under the app user-data directory.
+
+## Review Workflow
+
+- Use `History` to open a recording day in `Review & Learn`
+- Review each segment with `raw`, `auto improved`, and `manual correction` text
+- Save manual corrections to write back into the segment sidecar JSON
+- Named speakers can keep notes, seen languages, and candidate correction rules
+- Candidate rules can be confirmed or rejected from the speaker panel
 
 ## Output
 

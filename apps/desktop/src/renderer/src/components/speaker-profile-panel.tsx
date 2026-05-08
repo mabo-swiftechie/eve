@@ -75,6 +75,56 @@ export function SpeakerProfilePanel({
             </dd>
           </div>
         </dl>
+        {profile.ruleCandidates.length > 0 ? (
+          <div className="space-y-2 rounded-xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[color:var(--muted)]">
+              {t("reviewSpeakerCandidateList")}
+            </p>
+            <div className="grid gap-2">
+              {profile.ruleCandidates.map((candidate) => (
+                <article
+                  key={candidate.candidateId}
+                  className="rounded-lg border border-[color:var(--border)] bg-[color:var(--surface)] p-3 text-xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-semibold text-[color:var(--foreground)]">
+                      {candidate.language.toUpperCase()}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-[0.12em] text-[color:var(--muted)]">
+                      {candidate.status}
+                    </span>
+                  </div>
+                  <p className="mt-2 text-[color:var(--muted)]">{candidate.fromText}</p>
+                  <p className="mt-1 text-[color:var(--foreground)]">{candidate.toText}</p>
+                  <div className="mt-3 flex gap-2">
+                    <CandidateButton
+                      label={t("reviewSpeakerConfirmCandidate")}
+                      onClick={() =>
+                        void saveCandidateStatus({
+                          actions,
+                          candidateId: candidate.candidateId,
+                          nextStatus: "confirmed",
+                          profile
+                        })
+                      }
+                    />
+                    <CandidateButton
+                      label={t("reviewSpeakerRejectCandidate")}
+                      onClick={() =>
+                        void saveCandidateStatus({
+                          actions,
+                          candidateId: candidate.candidateId,
+                          nextStatus: "rejected",
+                          profile
+                        })
+                      }
+                    />
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <button
           className="inline-flex h-8 items-center justify-center rounded-lg bg-[color:var(--surface)] px-3.5 text-xs font-medium text-[color:var(--foreground)] ring-1 ring-[color:var(--border)] shadow-[var(--shadow-raised-sm)]"
           type="button"
@@ -92,4 +142,49 @@ export function SpeakerProfilePanel({
       </div>
     </aside>
   );
+}
+
+function CandidateButton({
+  label,
+  onClick
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="inline-flex h-7 items-center justify-center rounded-lg bg-[color:var(--panel)] px-2.5 text-[11px] font-medium text-[color:var(--foreground)] ring-1 ring-[color:var(--border)]"
+      type="button"
+      onClick={onClick}
+    >
+      {label}
+    </button>
+  );
+}
+
+async function saveCandidateStatus({
+  actions,
+  candidateId,
+  nextStatus,
+  profile
+}: {
+  actions: { updateSpeakerProfile: (profile: SpeakerProfile) => Promise<void> };
+  candidateId: string;
+  nextStatus: "confirmed" | "rejected";
+  profile: SpeakerProfile;
+}) {
+  const updatedAt = new Date().toISOString();
+  await actions.updateSpeakerProfile({
+    ...profile,
+    ruleCandidates: profile.ruleCandidates.map((candidate) =>
+      candidate.candidateId === candidateId
+        ? {
+            ...candidate,
+            status: nextStatus,
+            updatedAt
+          }
+        : candidate
+    ),
+    updatedAt
+  });
 }

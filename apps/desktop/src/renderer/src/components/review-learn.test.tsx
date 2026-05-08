@@ -26,6 +26,7 @@ describe("ReviewLearn", () => {
     expect(markup).toContain("长句短句都有，这设计吧。");
     expect(markup).toContain("Save manual correction");
     expect(markup).toContain("王晋");
+    expect(markup).toContain("Review candidates");
   });
 });
 
@@ -52,7 +53,19 @@ function createSnapshot(): DesktopSnapshot {
     displayName: "王晋",
     languagesSeen: ["zh", "ja"],
     notes: "平翘舌容易混。",
-    ruleCandidates: [],
+    ruleCandidates: [
+      {
+        candidateId: "candidate-1",
+        createdAt: "2026-05-08T11:05:00.000Z",
+        fromText: "长劲短劲都有，这设计吧。",
+        language: "zh",
+        segmentId: "segment-1",
+        speakerId: "speaker-wj",
+        status: "pending",
+        toText: "长句短句都有，这设计吧。",
+        updatedAt: "2026-05-08T11:05:00.000Z"
+      }
+    ],
     sharedTerms: {},
     speakerId: "speaker-wj",
     styleRulesJa: [],
