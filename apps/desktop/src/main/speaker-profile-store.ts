@@ -6,14 +6,18 @@ import type { RuleCandidate, SpeakerProfile } from "@eve/shared";
 type SpeakerProfileMap = Record<string, SpeakerProfile>;
 
 export class SpeakerProfileStore {
+  private writeQueue: Promise<void> = Promise.resolve();
+
   constructor(private readonly filePath?: string) {}
 
   async listProfiles(): Promise<SpeakerProfile[]> {
+    await this.writeQueue;
     const profiles = await this.readProfiles();
     return Object.values(profiles);
   }
 
   async getProfile(speakerId: string): Promise<SpeakerProfile | null> {
+    await this.writeQueue;
     const profiles = await this.readProfiles();
     return profiles[speakerId] ?? null;
   }
@@ -23,6 +27,7 @@ export class SpeakerProfileStore {
     if (!observedName) {
       return null;
     }
+    await this.writeQueue;
     const profiles = await this.readProfiles();
     return (
       Object.values(profiles).find((profile) => {
@@ -36,9 +41,10 @@ export class SpeakerProfileStore {
   }
 
   async saveProfile(profile: SpeakerProfile): Promise<SpeakerProfile> {
-    const profiles = await this.readProfiles();
-    profiles[profile.speakerId] = profile;
-    await this.writeProfiles(profiles);
+    await this.writeTransaction(async (profiles) => {
+      profiles[profile.speakerId] = profile;
+      await this.writeProfiles(profiles);
+    });
     return profile;
   }
 
@@ -46,28 +52,29 @@ export class SpeakerProfileStore {
     speakerId: string,
     candidate: RuleCandidate
   ): Promise<void> {
-    const profiles = await this.readProfiles();
-    const profile = profiles[speakerId];
-    if (!profile) {
-      throw new Error(`Speaker profile not found for ${speakerId}`);
-    }
+    await this.writeTransaction(async (profiles) => {
+      const profile = profiles[speakerId];
+      if (!profile) {
+        throw new Error(`Speaker profile not found for ${speakerId}`);
+      }
 
-    const existingIndex = profile.ruleCandidates.findIndex(
-      (item) => item.candidateId === candidate.candidateId
-    );
-    const nextCandidates = [...profile.ruleCandidates];
-    if (existingIndex >= 0) {
-      nextCandidates[existingIndex] = candidate;
-    } else {
-      nextCandidates.push(candidate);
-    }
+      const existingIndex = profile.ruleCandidates.findIndex(
+        (item) => item.candidateId === candidate.candidateId
+      );
+      const nextCandidates = [...profile.ruleCandidates];
+      if (existingIndex >= 0) {
+        nextCandidates[existingIndex] = candidate;
+      } else {
+        nextCandidates.push(candidate);
+      }
 
-    profiles[speakerId] = {
-      ...profile,
-      ruleCandidates: nextCandidates,
-      updatedAt: candidate.updatedAt
-    };
-    await this.writeProfiles(profiles);
+      profiles[speakerId] = {
+        ...profile,
+        ruleCandidates: nextCandidates,
+        updatedAt: candidate.updatedAt
+      };
+      await this.writeProfiles(profiles);
+    });
   }
 
   private async readProfiles(): Promise<SpeakerProfileMap> {
@@ -90,6 +97,17 @@ export class SpeakerProfileStore {
     const tempPath = `${filePath}.tmp`;
     await writeFile(tempPath, `${JSON.stringify(profiles, null, 2)}\n`, "utf8");
     await rename(tempPath, filePath);
+  }
+
+  private async writeTransaction(
+    operation: (profiles: SpeakerProfileMap) => Promise<void>
+  ): Promise<void> {
+    const run = this.writeQueue.then(async () => {
+      const profiles = await this.readProfiles();
+      await operation(profiles);
+    });
+    this.writeQueue = run.then(() => undefined, () => undefined);
+    await run;
   }
 
   private getFilePath(): string {

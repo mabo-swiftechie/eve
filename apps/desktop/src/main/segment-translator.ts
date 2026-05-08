@@ -1,9 +1,9 @@
 export interface SegmentTranslator {
-  translateChineseToJapanese(text: string): Promise<string>;
+  translateChineseToJapanese(text: string): Promise<string | null>;
 }
 
 export class PassthroughSegmentTranslator implements SegmentTranslator {
-  async translateChineseToJapanese(text: string): Promise<string> {
-    return text;
+  async translateChineseToJapanese(_text: string): Promise<null> {
+    return null;
   }
 }

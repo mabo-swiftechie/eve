@@ -1,21 +1,28 @@
+import log from "electron-log/main";
 import { readdir } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
+import { buildEnrichedSegmentRecord, normalizeLanguage } from "./desktop-engine-segment-output";
 import { transcribeAudioFile, writeJsonAtomic } from "./audio-utils";
+import type { SegmentTranslator } from "./segment-translator";
 
 const AUDIO_EXTENSIONS = new Set([".flac", ".wav"]);
 
 interface TranscribeAudioDirectoryOptions {
+  improveTranscript: (raw: string, language: string, profile: null) => string;
   inputDirectory: string;
   limit: number;
   recognizer: Parameters<typeof transcribeAudioFile>[0];
   requireFfmpeg: () => Promise<void>;
+  segmentTranslator: SegmentTranslator;
 }
 
 export async function transcribeAudioDirectory({
+  improveTranscript,
   inputDirectory,
   limit,
   recognizer,
-  requireFfmpeg
+  requireFfmpeg,
+  segmentTranslator
 }: TranscribeAudioDirectoryOptions): Promise<number> {
   const files = await collectAudioFiles(resolve(inputDirectory));
   let processed = 0;
@@ -30,15 +37,66 @@ export async function transcribeAudioDirectory({
 
     const jsonPath = `${audioPath.slice(0, -extname(audioPath).length)}.json`;
     const result = await transcribeAudioFile(recognizer, audioPath);
+    const rawTranscript = result.text.trim();
+    const detectedLanguage = normalizeLanguage(result.lang);
+    const improvedAutoTranscript = improveTranscript(rawTranscript, detectedLanguage, null);
+    let jaTranslation: string | null = null;
+    if (detectedLanguage === "zh") {
+      try {
+        jaTranslation = await segmentTranslator.translateChineseToJapanese(
+          improvedAutoTranscript
+        );
+      } catch (error) {
+        log.warn("[eve][engine] failed to translate zh recording", error);
+      }
+    }
+    const createdAt = new Date();
+    const recordingId = basename(audioPath, extname(audioPath));
+    const speechSegment = buildEnrichedSegmentRecord({
+      audioClipRef: audioPath,
+      confidence: null,
+      detectedLanguage,
+      improvedAutoTranscript,
+      jaTranslation,
+      rawTranscript,
+      recordingId,
+      speaker: null,
+      speakerDisplayName: "Speaker A",
+      speakerId: null,
+      startOffsetMs: 0,
+      startedAt: createdAt,
+      vadSampleCount: 0
+    });
+
     await writeJsonAtomic(jsonPath, {
       audio_file: basename(audioPath),
       audio_path: audioPath,
       backend: "sherpa-onnx",
-      created_at: new Date().toISOString(),
+      created_at: createdAt.toISOString(),
       language: result.lang || null,
       model: "Qwen3 ASR",
+      speech_segments: [
+        {
+          audio_clip_ref: speechSegment.audioClipRef,
+          confidence: speechSegment.confidence,
+          detected_language: speechSegment.detectedLanguage,
+          end_at: speechSegment.endAt,
+          improved_auto_transcript: speechSegment.improvedAutoTranscript,
+          ja_translation: speechSegment.jaTranslation,
+          manual_corrected_transcript: speechSegment.manualCorrectedTranscript,
+          raw_transcript: speechSegment.rawTranscript,
+          recording_id: speechSegment.recordingId,
+          segment_id: speechSegment.segmentId,
+          speaker: speechSegment.speaker,
+          speaker_display_name: speechSegment.speakerDisplayName,
+          speaker_id: speechSegment.speakerId,
+          start_at: speechSegment.startAt,
+          status: speechSegment.status,
+          text: speechSegment.text
+        }
+      ],
       status: "ok",
-      text: result.text.trim()
+      text: rawTranscript
     });
     processed += 1;
   }
