@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_STATUS } from "@eve/shared";
+import {
+  DEFAULT_STATUS,
+  EMPTY_LIVE_STAGE_SNAPSHOT,
+  EMPTY_REVIEW_SNAPSHOT
+} from "@eve/shared";
 import { statusTone } from "./status-tone";
 
 vi.mock("@/lib/i18n", () => ({
@@ -24,7 +28,7 @@ describe("statusTone", () => {
     ).toBe("recording");
   });
 
-  it("keeps desktop-store bootstrap compatible before live stage data exists", async () => {
+  it("keeps desktop-store bootstrap compatible with required stage and review snapshots", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     Object.assign(globalThis, {
       window: {
@@ -36,7 +40,7 @@ describe("statusTone", () => {
     const snapshot = getDesktopSnapshot();
 
     expect(snapshot.permission.state).toBe("denied");
-    expect(snapshot.liveStage?.activeSegment ?? null).toBeNull();
-    expect(snapshot.review?.segments ?? []).toEqual([]);
+    expect(snapshot.liveStage).toEqual(EMPTY_LIVE_STAGE_SNAPSHOT);
+    expect(snapshot.review).toEqual(EMPTY_REVIEW_SNAPSHOT);
   });
 });

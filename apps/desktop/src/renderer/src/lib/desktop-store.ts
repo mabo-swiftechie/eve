@@ -1,6 +1,8 @@
 import {
   DEFAULT_SETTINGS,
   DEFAULT_STATUS,
+  EMPTY_LIVE_STAGE_SNAPSHOT,
+  EMPTY_REVIEW_SNAPSHOT,
   type AppSettings,
   type DesktopSnapshot,
   type MicrophonePermissionStatus,
@@ -25,7 +27,16 @@ let snapshot: DesktopSnapshot = {
   devices: [],
   engineReady: false,
   history: [],
+  liveStage: {
+    ...EMPTY_LIVE_STAGE_SNAPSHOT,
+    recentSegments: []
+  },
   permission: defaultPermission(),
+  review: {
+    ...EMPTY_REVIEW_SNAPSHOT,
+    segments: [],
+    speakers: []
+  },
   settings: DEFAULT_SETTINGS,
   status: DEFAULT_STATUS,
   updater: {

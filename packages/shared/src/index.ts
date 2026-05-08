@@ -174,6 +174,17 @@ export interface ReviewSegmentSnapshot {
   speakers: SpeakerProfile[];
 }
 
+export const EMPTY_LIVE_STAGE_SNAPSHOT: LiveStageSnapshot = {
+  activeSegment: null,
+  recentSegments: []
+};
+
+export const EMPTY_REVIEW_SNAPSHOT: ReviewSegmentSnapshot = {
+  selectedRecordingId: null,
+  segments: [],
+  speakers: []
+};
+
 export type SidecarRequest =
   | { id: string; method: "devices.list" }
   | { id: string; method: "recording.start" }
@@ -203,9 +214,9 @@ export interface DesktopSnapshot {
   devices: DeviceInfo[];
   engineReady: boolean;
   history: RecordingHistoryItem[];
-  liveStage?: LiveStageSnapshot;
+  liveStage: LiveStageSnapshot;
   permission: MicrophonePermissionStatus;
-  review?: ReviewSegmentSnapshot;
+  review: ReviewSegmentSnapshot;
   settings: AppSettings;
   status: RecorderStatusSnapshot;
   updater: AutoUpdateSnapshot;
