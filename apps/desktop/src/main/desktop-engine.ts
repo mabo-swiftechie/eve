@@ -1,30 +1,23 @@
-import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rm, stat } from "node:fs/promises";
-import { basename, dirname, extname, join, resolve } from "node:path";
 import log from "electron-log/main";
 import {
-  DEFAULT_SETTINGS,
-  DEFAULT_STATUS,
-  type AppSettings,
-  type DeviceInfo,
-  type RecorderStatusSnapshot,
-  type SegmentRecord,
-  type SpeakerProfile
+  DEFAULT_SETTINGS, DEFAULT_STATUS, type AppSettings, type DeviceInfo, type RecorderStatusSnapshot
 } from "@eve/shared";
 import {
-  WavWriter,
   buildWaveformBins,
   createSenseVoiceRecognizer,
   createSherpaVad,
   decodeSegment,
   downsampleTo16k,
-  ensureWavInput,
-  rms,
-  rmsToDb,
-  transcodeWavToFlac,
-  transcribeAudioFile,
-  writeJsonAtomic
+  rmsToDb
 } from "./audio-utils";
+import {
+  buildEnrichedSegmentRecord,
+  createRecordingSegment,
+  normalizeLanguage,
+  persistRecordingSegment,
+  type RecordingSegment
+} from "./desktop-engine-segment-output";
+import { transcribeAudioDirectory } from "./desktop-engine-transcribe";
 import { ModelManager } from "./model-manager";
 import { SpeakerIdentifier, getDefaultSpeakerRegistryPath } from "./speaker-identifier";
 import { improveTranscript as defaultImproveTranscript } from "./segment-enhancer";
@@ -42,35 +35,6 @@ interface AudioChunkPayload {
   samples: Float32Array;
 }
 
-interface SpeechSegment {
-  confidence: number | null;
-  detectedLanguage: string;
-  improvedAutoTranscript: string | null;
-  jaTranslation: string | null;
-  manualCorrectedTranscript: string | null;
-  rawTranscript: string;
-  recordingId: string;
-  segmentId: string;
-  speaker: string | null;
-  speakerDisplayName: string;
-  speakerId: string | null;
-  startAt: string;
-  status: SegmentRecord["status"];
-  text: string;
-}
-
-interface RecordingSegment {
-  audioPath: string;
-  createdAt: string;
-  deviceLabel: string;
-  jsonPath: string | null;
-  startedAt: Date;
-  speechSegments: SpeechSegment[];
-  texts: string[];
-  wavPath: string;
-  writer: WavWriter;
-}
-
 type StatusListener = (status: RecorderStatusSnapshot) => void;
 
 interface DesktopEngineDependencies {
@@ -80,7 +44,6 @@ interface DesktopEngineDependencies {
 }
 
 const HISTORY_LIMIT = 5;
-const AUDIO_EXTENSIONS = new Set([".flac", ".wav"]);
 const AUDIO_QUEUE_ASR_BACKPRESSURE_THRESHOLD = 6;
 const AUDIO_QUEUE_ASR_RESUME_THRESHOLD = 2;
 const AUDIO_QUEUE_MAX_SIZE = 30;
@@ -112,14 +75,11 @@ export class DesktopEngine {
   private vadRemainder = new Float32Array(0);
   private speakerIdentifier: SpeakerIdentifier | null = null;
 
-  constructor(
-    onStatus: StatusListener,
-    {
-      improveTranscript = defaultImproveTranscript,
-      segmentTranslator = new PassthroughSegmentTranslator(),
-      speakerProfileStore = new SpeakerProfileStore()
-    }: DesktopEngineDependencies = {}
-  ) {
+  constructor(onStatus: StatusListener, {
+    improveTranscript = defaultImproveTranscript,
+    segmentTranslator = new PassthroughSegmentTranslator(),
+    speakerProfileStore = new SpeakerProfileStore()
+  }: DesktopEngineDependencies = {}) {
     this.onStatus = onStatus;
     this.improveTranscript = improveTranscript;
     this.segmentTranslator = segmentTranslator;
@@ -137,10 +97,7 @@ export class DesktopEngine {
     ) {
       this.recognizer = settings.recording.disableAsr
         ? null
-        : createSenseVoiceRecognizer(
-            this.modelManager.getSenseVoiceDirectory(),
-            settings.recording.asrLanguage
-          );
+        : createSenseVoiceRecognizer(this.modelManager.getSenseVoiceDirectory(), settings.recording.asrLanguage);
     }
     if (
       this.status.recording &&
@@ -184,9 +141,7 @@ export class DesktopEngine {
   }
 
   async startRecording(): Promise<void> {
-    if (this.status.recording) {
-      return;
-    }
+    if (this.status.recording) return;
     const liveTranscriptionEnabled = !this.settings.recording.disableAsr;
     if (liveTranscriptionEnabled) {
       await this.modelManager.ensureRuntimeAssets();
@@ -195,14 +150,9 @@ export class DesktopEngine {
       await this.modelManager.requireFfmpeg();
     }
     if (liveTranscriptionEnabled) {
-      this.recognizer ??= createSenseVoiceRecognizer(
-        this.modelManager.getSenseVoiceDirectory(),
-        this.settings.recording.asrLanguage
-      );
+      this.recognizer ??= createSenseVoiceRecognizer(this.modelManager.getSenseVoiceDirectory(), this.settings.recording.asrLanguage);
     }
-    this.vad = this.status.vadReady
-      ? createSherpaVad(this.modelManager.getVadModelPath())
-      : null;
+    this.vad = this.status.vadReady ? createSherpaVad(this.modelManager.getVadModelPath()) : null;
     this.vadRemainder = new Float32Array(0);
     this.pendingAudioChunks.length = 0;
     this.skippedAsrChunks = 0;
@@ -210,7 +160,6 @@ export class DesktopEngine {
     this.lastDiagnosticLogAt = 0;
     this.recordingStartedAt = Date.now();
 
-    // Initialize speaker identification if model is available
     if (this.status.speakerEmbeddingReady) {
       this.speakerIdentifier = new SpeakerIdentifier(this.modelManager.getSpeakerEmbeddingModelPath());
       const ok = this.speakerIdentifier.initialize();
@@ -236,9 +185,7 @@ export class DesktopEngine {
   }
 
   async stopRecording(): Promise<void> {
-    if (!this.status.recording) {
-      return;
-    }
+    if (!this.status.recording) return;
     await this.waitForPendingAudio();
     await this.flushVad();
     await this.closeSegment();
@@ -258,9 +205,7 @@ export class DesktopEngine {
   }
 
   async pushAudioChunk(payload: AudioChunkPayload): Promise<void> {
-    if (!this.status.recording || !this.segment) {
-      return;
-    }
+    if (!this.status.recording || !this.segment) return;
     // Drop oldest chunks when the queue grows too large to prevent unbounded
     // memory growth when processing can't keep up with the input rate.
     if (this.pendingAudioChunks.length >= AUDIO_QUEUE_MAX_SIZE) {
@@ -273,9 +218,7 @@ export class DesktopEngine {
   }
 
   private scheduleAudioQueueDrain(): void {
-    if (this.processingAudioQueue) {
-      return;
-    }
+    if (this.processingAudioQueue) return;
     this.processingAudioQueue = true;
     void this.drainAudioQueue();
   }
@@ -284,9 +227,7 @@ export class DesktopEngine {
     try {
       while (this.pendingAudioChunks.length > 0) {
         const payload = this.pendingAudioChunks.shift();
-        if (!payload) {
-          continue;
-        }
+        if (!payload) continue;
         try {
           await this.processAudioChunk(payload);
         } catch (error) {
@@ -310,9 +251,7 @@ export class DesktopEngine {
   }
 
   private async processAudioChunk(payload: AudioChunkPayload): Promise<void> {
-    if (!this.status.recording || !this.segment) {
-      return;
-    }
+    if (!this.status.recording || !this.segment) return;
     if (this.shouldRotateSegment()) {
       await this.rotateSegment(payload.deviceLabel);
     }
@@ -338,68 +277,22 @@ export class DesktopEngine {
     await this.modelManager.ensureRuntimeAssets();
     const recognizer =
       this.recognizer ??
-      createSenseVoiceRecognizer(
-        this.modelManager.getSenseVoiceDirectory(),
-        this.settings.recording.asrLanguage
-      );
+      createSenseVoiceRecognizer(this.modelManager.getSenseVoiceDirectory(), this.settings.recording.asrLanguage);
     this.recognizer = recognizer;
-    const files = await this.collectAudioFiles(resolve(inputDirectory));
-    let processed = 0;
-    for (const audioPath of files) {
-      if (TRANSCRIBE_LIMIT > 0 && processed >= TRANSCRIBE_LIMIT) {
-        break;
-      }
-      if (extname(audioPath).toLowerCase() !== ".wav") {
-        await this.modelManager.requireFfmpeg();
-      }
-      const jsonPath = `${audioPath.slice(0, -extname(audioPath).length)}.json`;
-      const result = await transcribeAudioFile(recognizer, audioPath);
-      const text = result.text.trim();
-      await writeJsonAtomic(jsonPath, {
-        audio_file: basename(audioPath),
-        audio_path: audioPath,
-        backend: "sherpa-onnx",
-        created_at: new Date().toISOString(),
-        language: result.lang || null,
-        model: "Qwen3 ASR",
-        status: "ok",
-        text
-      });
-      processed += 1;
-    }
+    const processed = await transcribeAudioDirectory({
+      inputDirectory,
+      limit: TRANSCRIBE_LIMIT,
+      recognizer,
+      requireFfmpeg: () => this.modelManager.requireFfmpeg()
+    });
     this.patchStatus({
       statusMessage: `Transcribed ${processed} recording${processed === 1 ? "" : "s"}.`
     });
   }
 
-  private async collectAudioFiles(directory: string): Promise<string[]> {
-    const entries = await readdir(directory, { withFileTypes: true });
-    const files = await Promise.all(
-      entries.map(async (entry) => {
-        const fullPath = join(directory, entry.name);
-        if (entry.isDirectory()) {
-          return this.collectAudioFiles(fullPath);
-        }
-        if (entry.isFile() && AUDIO_EXTENSIONS.has(extname(fullPath).toLowerCase())) {
-          return [fullPath];
-        }
-        return [];
-      })
-    );
-    return files.flat().sort();
-  }
-
-  private async consumeVadSamples(
-    samples: Float32Array,
-    { decodeSegments }: { decodeSegments: boolean }
-  ): Promise<void> {
-    if (!this.vad) {
-      return;
-    }
+  private async consumeVadSamples(samples: Float32Array, { decodeSegments }: { decodeSegments: boolean }): Promise<void> {
+    if (!this.vad) return;
     const windowSize = this.vad.config.sileroVad.windowSize;
-
-    // Fast-path: no remainder from a previous call – process `samples` directly
-    // to avoid allocating a combined buffer every time.
     let data: Float32Array;
     if (this.vadRemainder.length === 0) {
       data = samples;
@@ -416,42 +309,25 @@ export class DesktopEngine {
       this.patchStatus({ inSpeech: this.vad.isDetected() });
       await this.drainVadSegments({ decodeSegments });
     }
-
-    // Keep only the leftover tail for the next call.
     const remaining = data.length - offset;
     if (remaining > 0) {
-      // Allocate a fresh small buffer so the (potentially large) `data` can be GC'd.
       this.vadRemainder = data.slice(offset);
     } else {
       this.vadRemainder = new Float32Array(0);
     }
   }
 
-  private async drainVadSegments({
-    decodeSegments
-  }: {
-    decodeSegments: boolean;
-  }): Promise<void> {
-    if (!this.vad) {
-      return;
-    }
+  private async drainVadSegments({ decodeSegments }: { decodeSegments: boolean }): Promise<void> {
+    if (!this.vad) return;
     while (!this.vad.isEmpty()) {
       const vadSegment = this.vad.front(false);
       this.vad.pop();
-      if (!this.segment) {
-        continue;
-      }
+      if (!this.segment) continue;
       await this.segment.writer.append(vadSegment.samples);
-      if (!decodeSegments || !this.recognizer) {
-        continue;
-      }
+      if (!decodeSegments || !this.recognizer) continue;
       const result = decodeSegment(this.recognizer, vadSegment.samples);
       const text = result.text.trim();
-      if (!text) {
-        continue;
-      }
-
-      // Speaker identification
+      if (!text) continue;
       let speaker: string | null = null;
       let confidence: number | null = null;
       if (this.speakerIdentifier?.isInitialized) {
@@ -466,58 +342,40 @@ export class DesktopEngine {
         ? await this.speakerProfileStore.getProfile(speakerId)
         : null;
       const detectedLanguage = normalizeLanguage(result.lang);
-      const improvedAutoTranscript = this.improveTranscript(
-        text,
-        detectedLanguage,
-        speakerProfile
-      );
+      const improvedAutoTranscript = this.improveTranscript(text, detectedLanguage, speakerProfile);
       const jaTranslation =
-        detectedLanguage === "zh"
-          ? await this.segmentTranslator.translateChineseToJapanese(
-              improvedAutoTranscript
-            )
-          : null;
-      const speakerDisplayName = getSpeakerDisplayName(speaker, speakerProfile);
-      const status: SegmentRecord["status"] = jaTranslation
-        ? "translation_ready"
-        : "auto_improved";
-
-      const history = this.status.asrPreview
-        ? [this.status.asrPreview, ...this.status.asrHistory]
-        : [...this.status.asrHistory];
-      this.segment.texts.push(text);
-      this.segment.speechSegments.push({
+        detectedLanguage === "zh" ? await this.segmentTranslator.translateChineseToJapanese(improvedAutoTranscript) : null;
+      const enrichedSegment = buildEnrichedSegmentRecord({
+        audioClipRef: this.segment.audioPath,
         confidence,
         detectedLanguage,
         improvedAutoTranscript,
         jaTranslation,
-        manualCorrectedTranscript: null,
         rawTranscript: text,
         recordingId: this.segment.audioPath,
-        segmentId: randomUUID(),
         speaker,
-        speakerDisplayName,
-        speakerId,
-        startAt: new Date(
-          this.segment.startedAt.getTime() + vadSegment.start
-        ).toISOString(),
-        status,
-        text
+        speakerProfile,
+        startOffsetMs: vadSegment.start,
+        startedAt: this.segment.startedAt,
+        vadSampleCount: vadSegment.samples.length
       });
+      const history = this.status.asrPreview
+        ? [this.status.asrPreview, ...this.status.asrHistory]
+        : [...this.status.asrHistory];
+      this.segment.texts.push(text);
+      this.segment.speechSegments.push(enrichedSegment);
       this.patchStatus({
         asrHistory: history.slice(0, HISTORY_LIMIT),
         asrPreview: text,
-        statusMessage: speakerDisplayName
-          ? `Speech recognized (${speakerDisplayName}).`
+        statusMessage: enrichedSegment.speakerDisplayName
+          ? `Speech recognized (${enrichedSegment.speakerDisplayName}).`
           : "Speech recognized."
       });
     }
   }
 
   private async flushVad(): Promise<void> {
-    if (!this.vad) {
-      return;
-    }
+    if (!this.vad) return;
     if (this.vadRemainder.length > 0) {
       const padded = new Float32Array(this.vad.config.sileroVad.windowSize);
       padded.set(this.vadRemainder);
@@ -529,9 +387,7 @@ export class DesktopEngine {
   }
 
   private shouldRotateSegment(): boolean {
-    if (!this.segment) {
-      return false;
-    }
+    if (!this.segment) return false;
     return Date.now() - this.segment.startedAt.getTime() >= this.settings.recording.segmentMinutes * 60_000;
   }
 
@@ -546,78 +402,18 @@ export class DesktopEngine {
   }
 
   private async openSegment(deviceLabel?: string): Promise<RecordingSegment> {
-    const now = new Date();
-    const outputDirectory = resolve(
-      this.settings.recording.outputDir,
-      this.formatSegmentDirectoryName(now)
-    );
-    await mkdir(outputDirectory, { recursive: true });
-    const baseName = this.formatSegmentName(now);
-    const wavPath = join(outputDirectory, `${baseName}.wav`);
-    return {
-      audioPath: wavPath,
-      createdAt: now.toISOString(),
+    return createRecordingSegment({
       deviceLabel: deviceLabel || this.status.deviceLabel || "default",
-      jsonPath: this.settings.recording.disableAsr
-        ? null
-        : join(outputDirectory, `${baseName}.json`),
-      startedAt: now,
-      speechSegments: [],
-      texts: [],
-      wavPath,
-      writer: new WavWriter(wavPath)
-    };
+      disableAsr: this.settings.recording.disableAsr,
+      outputDir: this.settings.recording.outputDir
+    });
   }
 
   private async closeSegment(): Promise<void> {
-    if (!this.segment) {
-      return;
-    }
+    if (!this.segment) return;
     const current = this.segment;
     this.segment = null;
-    await current.writer.close();
-    let finalAudioPath = current.wavPath;
-    if (this.settings.recording.audioFormat === "flac") {
-      finalAudioPath = current.wavPath.replace(/\.wav$/i, ".flac");
-      await transcodeWavToFlac(current.wavPath, finalAudioPath);
-      await rm(current.wavPath, { force: true });
-    }
-    if (!current.jsonPath) {
-      return;
-    }
-
-    const payload: Record<string, unknown> = {
-      audio_file: basename(finalAudioPath),
-      audio_path: finalAudioPath,
-      backend: "sherpa-onnx",
-      created_at: current.createdAt,
-      input_device: current.deviceLabel,
-      model: "Qwen3 ASR",
-      segment_start_time: current.startedAt.toISOString(),
-      status: "ok",
-      text: current.texts.join(" ").trim()
-    };
-
-    if (current.speechSegments.length > 0) {
-      payload.speech_segments = current.speechSegments.map((seg) => ({
-        confidence: seg.confidence,
-        detected_language: seg.detectedLanguage,
-        improved_auto_transcript: seg.improvedAutoTranscript,
-        ja_translation: seg.jaTranslation,
-        manual_corrected_transcript: seg.manualCorrectedTranscript,
-        raw_transcript: seg.rawTranscript,
-        recording_id: seg.recordingId,
-        segment_id: seg.segmentId,
-        speaker: seg.speaker,
-        speaker_display_name: seg.speakerDisplayName,
-        speaker_id: seg.speakerId,
-        start_at: seg.startAt,
-        status: seg.status,
-        text: seg.text
-      }));
-    }
-
-    await writeJsonAtomic(current.jsonPath, payload);
+    await persistRecordingSegment(current, this.settings.recording.audioFormat);
   }
 
   private shouldThrottleAsr(): boolean {
@@ -645,15 +441,6 @@ export class DesktopEngine {
     return `${hours}:${minutes}:${seconds}`;
   }
 
-  private formatSegmentName(value: Date): string {
-    const stamp = `${value.getFullYear()}${`${value.getMonth() + 1}`.padStart(2, "0")}${`${value.getDate()}`.padStart(2, "0")}_${`${value.getHours()}`.padStart(2, "0")}${`${value.getMinutes()}`.padStart(2, "0")}${`${value.getSeconds()}`.padStart(2, "0")}`;
-    return `eve_${stamp}`;
-  }
-
-  private formatSegmentDirectoryName(value: Date): string {
-    return `${value.getFullYear()}${`${value.getMonth() + 1}`.padStart(2, "0")}${`${value.getDate()}`.padStart(2, "0")}`;
-  }
-
   private patchStatus(patch: Partial<RecorderStatusSnapshot>): void {
     this.status = { ...this.status, ...patch };
     this.onStatus(this.getStatus());
@@ -661,9 +448,7 @@ export class DesktopEngine {
 
   private logDiagnostics(reason: string, { force = false }: { force?: boolean } = {}): void {
     const now = Date.now();
-    if (!force && now - this.lastDiagnosticLogAt < DIAGNOSTIC_LOG_INTERVAL_MS) {
-      return;
-    }
+    if (!force && now - this.lastDiagnosticLogAt < DIAGNOSTIC_LOG_INTERVAL_MS) return;
     this.lastDiagnosticLogAt = now;
     const memory = process.memoryUsage();
     log.info(
@@ -679,21 +464,3 @@ export class DesktopEngine {
     );
   }
 }
-
-const normalizeLanguage = (value: string | null | undefined): string => {
-  if (!value) {
-    return "unknown";
-  }
-  const normalized = value.trim().toLowerCase();
-  return normalized.length > 0 ? normalized : "unknown";
-};
-
-const getSpeakerDisplayName = (
-  speaker: string | null,
-  speakerProfile: SpeakerProfile | null
-): string => {
-  if (speakerProfile?.displayName) {
-    return speakerProfile.displayName;
-  }
-  return speaker ?? "Speaker A";
-};

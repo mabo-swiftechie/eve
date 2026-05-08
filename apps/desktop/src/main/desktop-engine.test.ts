@@ -258,12 +258,16 @@ describe("DesktopEngine", () => {
     );
     expect(payload.speech_segments).toEqual([
       expect.objectContaining({
+        audio_clip_ref: expect.stringContaining(".flac"),
+        detected_language: "zh",
+        end_at: expect.any(String),
         raw_transcript: "长劲短劲都有，Qwen3 也有。",
         improved_auto_transcript: "improved:长劲短劲都有，Qwen3 也有。",
         ja_translation: "ja:improved:长劲短劲都有，Qwen3 也有。",
         speaker: "王晋",
         speaker_display_name: "王晋",
         speaker_id: "speaker:王晋",
+        start_at: expect.any(String),
         status: "translation_ready"
       })
     ]);
