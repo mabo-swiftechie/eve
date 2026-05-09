@@ -16,6 +16,7 @@ import {
   type RecordingSegment
 } from "./desktop-engine-segment-output";
 import { buildLiveStageSnapshot } from "./desktop-engine-live-stage";
+import { backfillSpeakerProfile } from "./live-stage-speaker";
 import { transcribeAudioDirectory } from "./desktop-engine-transcribe";
 import { inferDetectedLanguage } from "./language-routing";
 import { backfillChineseTranslation } from "./live-stage-translation";
@@ -363,13 +364,10 @@ export class DesktopEngine {
           confidence = match.confidence;
         }
       }
-      const speakerProfile = speaker
-        ? await this.speakerProfileStore.findProfileByName(speaker)
-        : null;
-      const speakerId = speakerProfile?.speakerId ?? null;
-      const speakerDisplayName = speakerProfile?.displayName ?? speaker ?? "Speaker A";
+      const speakerId = null;
+      const speakerDisplayName = speaker ?? "Speaker A";
       const detectedLanguage = inferDetectedLanguage(result.lang, text);
-      const improvedAutoTranscript = this.improveTranscript(text, detectedLanguage, speakerProfile);
+      const improvedAutoTranscript = this.improveTranscript(text, detectedLanguage, null);
       const enrichedSegment = buildEnrichedSegmentRecord({
         audioClipRef: this.segment.audioPath,
         confidence,
@@ -411,6 +409,12 @@ export class DesktopEngine {
         onTranslated: () => this.patchStatus({}),
         segment: enrichedSegment,
         segmentTranslator: this.segmentTranslator
+      });
+      void backfillSpeakerProfile({
+        lookupProfile: (speakerName) => this.speakerProfileStore.findProfileByName(speakerName),
+        onResolved: () => this.patchStatus({}),
+        segment: enrichedSegment,
+        speaker
       });
     }
   }

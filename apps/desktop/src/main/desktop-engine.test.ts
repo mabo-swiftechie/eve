@@ -309,7 +309,7 @@ describe("DesktopEngine", () => {
     expect(improveTranscript).toHaveBeenCalledWith(
       "长劲短劲都有，Qwen3 也有。",
       "zh",
-      expect.objectContaining({ speakerId: "speaker-wj" })
+      null
     );
     expect(findProfileByName).toHaveBeenCalledWith("王晋");
     expect(translateChineseToJapanese).toHaveBeenCalledWith(
@@ -446,6 +446,115 @@ describe("DesktopEngine", () => {
       expect.objectContaining({
         jaTranslation: "ja:improved:先显示原文。",
         status: "translation_ready"
+      })
+    );
+
+    await engine.stopRecording();
+  });
+
+  it("publishes the live stage segment before speaker profile lookup resolves", async () => {
+    const improveTranscript = vi.fn((text: string) => `improved:${text}`);
+    modelManagerState.getStatus.mockReturnValue({
+      downloading: false,
+      ffmpegAvailable: true,
+      senseVoiceReady: true,
+      speakerEmbeddingReady: true,
+      vadReady: true
+    });
+    let resolveProfile: ((value: {
+      aliases: string[];
+      correctionLexiconJa: Record<string, string>;
+      correctionLexiconZh: Record<string, string>;
+      displayName: string;
+      languagesSeen: string[];
+      notes: string;
+      ruleCandidates: never[];
+      sharedTerms: Record<string, string>;
+      speakerId: string;
+      styleRulesJa: string[];
+      styleRulesZh: string[];
+      updatedAt: string;
+    } | null) => void) = () => {
+      throw new Error("Expected profile resolver to be captured.");
+    };
+    const findProfileByName = vi.fn(
+      () =>
+        new Promise<{
+          aliases: string[];
+          correctionLexiconJa: Record<string, string>;
+          correctionLexiconZh: Record<string, string>;
+          displayName: string;
+          languagesSeen: string[];
+          notes: string;
+          ruleCandidates: never[];
+          sharedTerms: Record<string, string>;
+          speakerId: string;
+          styleRulesJa: string[];
+          styleRulesZh: string[];
+          updatedAt: string;
+        } | null>((resolve) => {
+          resolveProfile = resolve;
+        })
+    );
+    const { DesktopEngine } = await import("./desktop-engine");
+    const engine = new DesktopEngine(() => {}, {
+      improveTranscript,
+      segmentTranslator: { translateChineseToJapanese: vi.fn(async () => null) },
+      speakerProfileStore: {
+        findProfileByName,
+        getProfile: vi.fn(async () => null)
+      }
+    });
+
+    vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
+    decodeSegmentMock.mockReturnValue({
+      lang: "zh",
+      text: "先显示名字。",
+      timestamps: [0],
+      tokens: ["先显示名字。"]
+    });
+    speakerIdentifierState.identify.mockReturnValue({
+      confidence: 0.91,
+      name: "王晋"
+    });
+
+    await engine.startRecording();
+    await engine.pushAudioChunk({
+      deviceId: "default",
+      deviceLabel: "Built-in Mic",
+      rms: 0.3,
+      sampleRate: 16_000,
+      samples: new Float32Array(512)
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(engine.getLiveStageSnapshot().activeSegment).toEqual(
+      expect.objectContaining({
+        speakerDisplayName: "王晋",
+        speakerId: null
+      })
+    );
+
+    resolveProfile({
+      aliases: [],
+      correctionLexiconJa: {},
+      correctionLexiconZh: {},
+      displayName: "王晋",
+      languagesSeen: ["zh"],
+      notes: "",
+      ruleCandidates: [],
+      sharedTerms: {},
+      speakerId: "speaker-wj",
+      styleRulesJa: [],
+      styleRulesZh: [],
+      updatedAt: "2026-05-10T00:00:00.000Z"
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(engine.getLiveStageSnapshot().activeSegment).toEqual(
+      expect.objectContaining({
+        speakerDisplayName: "王晋",
+        speakerId: "speaker-wj"
       })
     );
 
