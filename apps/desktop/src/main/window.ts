@@ -1,19 +1,22 @@
 import { app, BrowserWindow, nativeImage, screen } from "electron";
 import { join } from "node:path";
+import { getPreferredWindowSize, WINDOW_SIZE_LIMITS } from "./window-layout";
 
 const WINDOW_TITLE = "Eve Recorder";
 const WINDOW_ICON_PATH = join(import.meta.dirname, "../../resources/icon.png");
+const WINDOW_EDGE_MARGIN = 12;
 
 export const createMainWindow = (showOnReady: boolean): BrowserWindow => {
   const isMac = process.platform === "darwin";
   const useGlassWindow = isMac;
+  const { workAreaSize } = screen.getPrimaryDisplay();
+  const preferredSize = getPreferredWindowSize(workAreaSize);
 
   const windowRef = new BrowserWindow({
-    width: 420,
-    height: 620,
-    minWidth: 380,
-    minHeight: 480,
-    maxWidth: 520,
+    width: preferredSize.width,
+    height: preferredSize.height,
+    minWidth: WINDOW_SIZE_LIMITS.minWidth,
+    minHeight: WINDOW_SIZE_LIMITS.minHeight,
     resizable: true,
     frame: false,
     titleBarStyle: "hidden",
@@ -82,23 +85,32 @@ export const positionNearTray = (
   windowRef: BrowserWindow,
   trayBounds: Electron.Rectangle | null
 ): void => {
-  const [winWidth] = windowRef.getSize();
-  const display = screen.getPrimaryDisplay();
+  const [winWidth, winHeight] = windowRef.getSize();
+  const trayCenter = trayBounds
+    ? { x: trayBounds.x + Math.round(trayBounds.width / 2), y: trayBounds.y + trayBounds.height }
+    : null;
+  const display = trayCenter
+    ? screen.getDisplayNearestPoint(trayCenter)
+    : screen.getPrimaryDisplay();
+  const { width: screenWidth, height: screenHeight, x: screenX, y: screenY } = display.workArea;
 
   if (trayBounds && trayBounds.width > 0) {
-    // Center the window horizontally on the tray icon
-    const trayCenterX = trayBounds.x + Math.round(trayBounds.width / 2);
-    const x = Math.round(trayCenterX - winWidth / 2);
-    // Place just below the tray icon (menu bar height)
+    const x = Math.round((trayCenter?.x ?? trayBounds.x) - winWidth / 2);
     const y = trayBounds.y + trayBounds.height + 4;
-
-    // Clamp to screen edges
-    const { width: screenWidth } = display.workAreaSize;
-    const clampedX = Math.max(8, Math.min(x, screenWidth - winWidth - 8));
-    windowRef.setPosition(clampedX, y, false);
+    const clampedX = Math.max(
+      screenX + WINDOW_EDGE_MARGIN,
+      Math.min(x, screenX + screenWidth - winWidth - WINDOW_EDGE_MARGIN)
+    );
+    const clampedY = Math.max(
+      screenY + 4,
+      Math.min(y, screenY + screenHeight - winHeight - WINDOW_EDGE_MARGIN)
+    );
+    windowRef.setPosition(clampedX, clampedY, false);
   } else {
-    // Fallback: top-right corner
-    const { width: screenWidth } = display.workAreaSize;
-    windowRef.setPosition(screenWidth - winWidth - 12, 4, false);
+    windowRef.setPosition(
+      screenX + screenWidth - winWidth - WINDOW_EDGE_MARGIN,
+      screenY + 4,
+      false
+    );
   }
 };

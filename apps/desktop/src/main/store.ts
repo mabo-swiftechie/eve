@@ -9,6 +9,7 @@ import {
   type RecorderStatusSnapshot,
   type ThemeMode
 } from "@eve/shared";
+import { WINDOW_SIZE_LIMITS } from "./window-layout";
 
 interface WindowState {
   height: number;
@@ -25,8 +26,8 @@ const desktopStore = new Store<DesktopStoreSchema>({
   defaults: {
     settings: DEFAULT_SETTINGS,
     windowState: {
-      height: 620,
-      width: 420
+      height: WINDOW_SIZE_LIMITS.defaultHeight,
+      width: WINDOW_SIZE_LIMITS.defaultWidth
     }
   },
   name: "desktop-settings"
@@ -140,8 +141,14 @@ export const setSettings = (settings: AppSettings): AppSettings => {
 export const getWindowState = (): WindowState => {
   const state = desktopStore.get("windowState");
   return {
-    height: normalizeNumber(state?.height, 620),
-    width: normalizeNumber(state?.width, 420)
+    height: Math.max(
+      WINDOW_SIZE_LIMITS.minHeight,
+      normalizeNumber(state?.height, WINDOW_SIZE_LIMITS.defaultHeight)
+    ),
+    width: Math.max(
+      WINDOW_SIZE_LIMITS.minWidth,
+      normalizeNumber(state?.width, WINDOW_SIZE_LIMITS.defaultWidth)
+    )
   };
 };
 
