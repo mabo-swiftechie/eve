@@ -152,7 +152,27 @@ export function normalizeLanguage(value: string | null | undefined): string {
     return "unknown";
   }
   const normalized = value.trim().toLowerCase();
-  return normalized.length > 0 ? normalized : "unknown";
+  if (!normalized) {
+    return "unknown";
+  }
+  if (
+    normalized === "zh" ||
+    normalized.startsWith("zh-") ||
+    normalized === "cmn" ||
+    normalized === "mandarin" ||
+    normalized === "chinese"
+  ) {
+    return "zh";
+  }
+  if (
+    normalized === "ja" ||
+    normalized.startsWith("ja-") ||
+    normalized === "jpn" ||
+    normalized === "japanese"
+  ) {
+    return "ja";
+  }
+  return normalized;
 }
 
 async function finalizeAudioPath(
