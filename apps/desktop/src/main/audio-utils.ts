@@ -73,6 +73,8 @@ export const sherpaOnnx = (): SherpaOnnx => {
 
 export const TARGET_SAMPLE_RATE = 16_000;
 export const VAD_WINDOW_SIZE = 512;
+export const VAD_MIN_SILENCE_DURATION_SECONDS = 0.32;
+export const VAD_MIN_SPEECH_DURATION_SECONDS = 0.18;
 
 const firstExisting = (paths: string[]) => paths.find((path) => existsSync(path)) ?? null;
 const resolveFfmpegCommand = async (): Promise<string> => {
@@ -173,8 +175,8 @@ export const createSherpaVad = (modelPath: string) => {
       sampleRate: TARGET_SAMPLE_RATE,
       sileroVad: {
         maxSpeechDuration: 15,
-        minSilenceDuration: 0.5,
-        minSpeechDuration: 0.25,
+        minSilenceDuration: VAD_MIN_SILENCE_DURATION_SECONDS,
+        minSpeechDuration: VAD_MIN_SPEECH_DURATION_SECONDS,
         model: modelPath,
         threshold: 0.5,
         windowSize: VAD_WINDOW_SIZE
