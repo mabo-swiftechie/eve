@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SegmentRecord } from "@eve/shared";
 import {
   backfillChineseTranslation,
+  resetLiveStageTranslationPriority,
   splitTranslationChunks
 } from "./live-stage-translation";
+
+beforeEach(() => {
+  resetLiveStageTranslationPriority();
+});
 
 describe("splitTranslationChunks", () => {
   it("keeps short text as a single translation request", () => {
@@ -50,6 +55,60 @@ describe("backfillChineseTranslation", () => {
     expect(translator.translateChineseToJapanese).toHaveBeenCalledTimes(2);
     expect(translatedStates).toEqual(["最初の訳です。", "最初の訳です。続きの訳です。"]);
     expect(segment.status).toBe("translation_ready");
+  });
+
+  it("stops older segment chunks when a newer zh segment arrives", async () => {
+    let resolveFirstOldChunk: ((value: string) => void) | null = null;
+    let resolveSecondOldChunk: ((value: string) => void) | null = null;
+    let resolveNewChunk: ((value: string) => void) | null = null;
+    const oldSegment = createSegment(
+      "第一句比较长，但是还在一个合理范围内。第二句也不短，而且应该被拆成新的翻译块。第三句继续补充说明。"
+    );
+    const newSegment = createSegment("新的句子来了。");
+    const translator = {
+      translateChineseToJapanese: vi.fn((text: string) => {
+        if (text === "新的句子来了。") {
+          return new Promise<string>((resolve) => {
+            resolveNewChunk = resolve;
+          });
+        }
+        if (!resolveFirstOldChunk) {
+          return new Promise<string>((resolve) => {
+            resolveFirstOldChunk = resolve;
+          });
+        }
+        return new Promise<string>((resolve) => {
+          resolveSecondOldChunk = resolve;
+        });
+      })
+    };
+
+    backfillChineseTranslation({
+      detectedLanguage: "zh",
+      onError: vi.fn(),
+      onTranslated: vi.fn(),
+      segment: oldSegment,
+      segmentTranslator: translator
+    });
+    expect(resolveFirstOldChunk).toBeTypeOf("function");
+    resolveFirstOldChunk!("旧段第一块。");
+    await Promise.resolve();
+    backfillChineseTranslation({
+      detectedLanguage: "zh",
+      onError: vi.fn(),
+      onTranslated: vi.fn(),
+      segment: newSegment,
+      segmentTranslator: translator
+    });
+    expect(resolveNewChunk).toBeTypeOf("function");
+    expect(resolveSecondOldChunk).toBeTypeOf("function");
+    resolveNewChunk!("新段翻译。");
+    resolveSecondOldChunk!("旧段第二块。");
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(oldSegment.jaTranslation).toBe("旧段第一块。");
+    expect(newSegment.jaTranslation).toBe("新段翻译。");
   });
 });
 

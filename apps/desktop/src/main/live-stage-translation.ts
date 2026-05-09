@@ -2,6 +2,7 @@ import type { SegmentRecord } from "@eve/shared";
 import type { SegmentTranslator } from "./segment-translator";
 
 const TRANSLATION_CHUNK_LIMIT = 48;
+let latestTranslationRequestId = 0;
 
 export function backfillChineseTranslation({
   detectedLanguage,
@@ -20,12 +21,19 @@ export function backfillChineseTranslation({
   if (detectedLanguage !== "zh" || !improvedText) {
     return;
   }
+  const requestId = ++latestTranslationRequestId;
   void (async () => {
     try {
       const chunks = splitTranslationChunks(improvedText);
       const translatedChunks: string[] = [];
       for (const chunk of chunks) {
+        if (requestId !== latestTranslationRequestId) {
+          return;
+        }
         const jaTranslation = await segmentTranslator.translateChineseToJapanese(chunk);
+        if (requestId !== latestTranslationRequestId) {
+          return;
+        }
         if (!jaTranslation?.trim()) {
           continue;
         }
@@ -38,6 +46,10 @@ export function backfillChineseTranslation({
       onError(error);
     }
   })();
+}
+
+export function resetLiveStageTranslationPriority(): void {
+  latestTranslationRequestId = 0;
 }
 
 export function splitTranslationChunks(text: string): string[] {
