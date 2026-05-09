@@ -29,8 +29,11 @@ fi
 
 pids=()
 for line in "${targets[@]}"; do
+  [[ -z "${line//[[:space:]]/}" ]] && continue
+  line="${line#"${line%%[![:space:]]*}"}"
   pid="${line%% *}"
   command="${line#* }"
+  [[ "$pid" =~ ^[0-9]+$ ]] || continue
   pids+=("$pid")
   if [[ "$dry_run" -eq 1 ]]; then
     echo "Would stop $pid $command"
@@ -38,6 +41,11 @@ for line in "${targets[@]}"; do
     echo "Stopping $pid $command"
   fi
 done
+
+if [[ "${#pids[@]}" -eq 0 ]]; then
+  echo "No desktop development processes found."
+  exit 0
+fi
 
 if [[ "$dry_run" -eq 0 ]]; then
   kill "${pids[@]}"
