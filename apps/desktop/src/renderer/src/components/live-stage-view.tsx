@@ -28,13 +28,13 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
 
   return (
     <section className="space-y-5">
-      <div className="mx-auto w-full max-w-[1600px] rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--panel)] p-5 shadow-[var(--shadow-raised-sm)] xl:w-[80vw] xl:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[color:var(--border)] pb-4">
+      <div className="mx-auto w-full max-w-[1680px] rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--panel)] p-4 shadow-[var(--shadow-raised-sm)] xl:w-[82vw] xl:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[color:var(--border)] pb-3">
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">
               {t("stageModeTitle")}
             </p>
-            <h2 className="text-2xl font-semibold tracking-tight text-[color:var(--foreground)]">
+            <h2 className="text-xl font-semibold tracking-tight text-[color:var(--foreground)] xl:text-2xl">
               {segment.speakerDisplayName}
             </h2>
           </div>
@@ -43,7 +43,7 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
           </div>
         </div>
 
-        <details className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3">
+        <details className="mt-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3">
           <summary className="cursor-pointer list-none text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
             Diagnostics
           </summary>
@@ -55,20 +55,20 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
           </dl>
         </details>
 
-        <div className="mt-6 grid min-h-[52vh] grid-cols-2 gap-5">
-          <article className="min-w-0 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 lg:p-8">
+        <div className="mt-4 grid min-h-[50vh] grid-cols-2 gap-4">
+          <article className="min-w-0 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 xl:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
               {primaryLabel(segment, t)}
             </p>
-            <p className="mt-5 whitespace-pre-wrap break-words text-[1.8rem] leading-[1.8] text-[color:var(--foreground)] lg:text-[2.4rem] lg:leading-[1.75] 2xl:text-[2.8rem]">
+            <p className="mt-4 whitespace-pre-wrap break-words text-[1.35rem] leading-[1.65] text-[color:var(--foreground)] xl:text-[1.55rem] 2xl:text-[1.7rem]">
               {segment.improvedAutoTranscript ?? segment.rawTranscript}
             </p>
           </article>
-          <article className="min-w-0 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-6 lg:p-8">
+          <article className="min-w-0 rounded-[2rem] border border-[color:var(--border)] bg-[color:var(--surface)] p-5 xl:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
               {secondaryLabel(segment, t)}
             </p>
-            <p className="mt-5 whitespace-pre-wrap break-words text-[1.8rem] leading-[1.8] text-[color:var(--foreground)] lg:text-[2.4rem] lg:leading-[1.75] 2xl:text-[2.8rem]">
+            <p className="mt-4 whitespace-pre-wrap break-words text-[1.35rem] leading-[1.65] text-[color:var(--foreground)] xl:text-[1.55rem] 2xl:text-[1.7rem]">
               {secondaryText(segment, t)}
             </p>
           </article>
@@ -76,15 +76,15 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
       </div>
 
       {recentSegments.length > 0 && (
-        <div className="mx-auto w-full max-w-[1600px] rounded-3xl border border-[color:var(--border)] bg-[color:var(--panel)] p-4 shadow-[var(--shadow-raised-sm)] xl:w-[80vw]">
+        <div className="mx-auto w-full max-w-[1680px] rounded-3xl border border-[color:var(--border)] bg-[color:var(--panel)] p-3 shadow-[var(--shadow-raised-sm)] xl:w-[82vw]">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[color:var(--muted)]">
             {t("liveStageRecentTitle")}
           </p>
-          <div className="mt-4 grid gap-3 xl:grid-cols-3">
+          <div className="mt-3 grid gap-3 xl:grid-cols-3">
             {recentSegments.map((item) => (
               <article
                 key={item.segmentId}
-                className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4"
+                className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3"
               >
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-sm font-semibold tracking-tight text-[color:var(--foreground)]">
@@ -99,7 +99,7 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
                       {primaryLabel(item, t)}
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[color:var(--foreground)]">
+                    <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-5 text-[color:var(--foreground)]">
                       {item.improvedAutoTranscript ?? item.rawTranscript}
                     </p>
                   </div>
@@ -107,7 +107,7 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
                       {secondaryLabel(item, t)}
                     </p>
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[color:var(--muted)]">
+                    <p className="mt-1 whitespace-pre-wrap break-words text-[13px] leading-5 text-[color:var(--muted)]">
                       {secondaryText(item, t)}
                     </p>
                   </div>
