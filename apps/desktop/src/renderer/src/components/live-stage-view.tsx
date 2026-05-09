@@ -43,32 +43,32 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
           </div>
         </div>
 
-        <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
-            Debug
-          </p>
+        <details className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
+          <summary className="cursor-pointer list-none text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            Diagnostics
+          </summary>
           <dl className="mt-3 grid gap-3 text-sm text-[color:var(--foreground)] md:grid-cols-2 xl:grid-cols-4">
             <DebugField label="Raw lang" value={segment.rawDetectedLanguage ?? "unknown"} />
             <DebugField label="Normalized" value={segment.detectedLanguage} />
             <DebugField label="Route" value={stageRoute(segment)} />
             <DebugField label="Translation" value={translationState(segment)} />
           </dl>
-        </div>
+        </details>
 
-        <div className="mt-5 grid gap-4 lg:grid-cols-2">
-          <article className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <article className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5 lg:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
               {primaryLabel(segment, t)}
             </p>
-            <p className="mt-3 whitespace-pre-wrap break-words text-lg leading-8 text-[color:var(--foreground)]">
+            <p className="mt-4 whitespace-pre-wrap break-words text-xl leading-9 text-[color:var(--foreground)] lg:text-[2rem] lg:leading-[3rem]">
               {segment.improvedAutoTranscript ?? segment.rawTranscript}
             </p>
           </article>
-          <article className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
+          <article className="rounded-3xl border border-[color:var(--border)] bg-[color:var(--surface)] p-5 lg:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
               {secondaryLabel(segment, t)}
             </p>
-            <p className="mt-3 whitespace-pre-wrap break-words text-lg leading-8 text-[color:var(--foreground)]">
+            <p className="mt-4 whitespace-pre-wrap break-words text-xl leading-9 text-[color:var(--foreground)] lg:text-[2rem] lg:leading-[3rem]">
               {secondaryText(segment, t)}
             </p>
           </article>
@@ -94,9 +94,24 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
                     {stageLanguageLabel(item, t)}
                   </span>
                 </div>
-                <p className="mt-2 text-sm leading-6 text-[color:var(--foreground)]">
-                  {item.improvedAutoTranscript ?? item.rawTranscript}
-                </p>
+                <div className="mt-3 grid gap-3 lg:grid-cols-2">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                      {primaryLabel(item, t)}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[color:var(--foreground)]">
+                      {item.improvedAutoTranscript ?? item.rawTranscript}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+                      {secondaryLabel(item, t)}
+                    </p>
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-[color:var(--foreground)]">
+                      {secondaryText(item, t)}
+                    </p>
+                  </div>
+                </div>
               </article>
             ))}
           </div>

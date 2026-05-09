@@ -391,6 +391,66 @@ describe("DesktopEngine", () => {
     );
     expect(engine.getStatus().error).toBeNull();
   });
+
+  it("publishes the live stage segment before zh-ja translation resolves", async () => {
+    const improveTranscript = vi.fn((text: string) => `improved:${text}`);
+    let translationResolver: (value: string) => void = () => {
+      throw new Error("Expected translation resolver to be captured.");
+    };
+    const translateChineseToJapanese = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          translationResolver = resolve;
+        })
+    );
+    const { DesktopEngine } = await import("./desktop-engine");
+    const engine = new DesktopEngine(() => {}, {
+      improveTranscript,
+      segmentTranslator: { translateChineseToJapanese },
+      speakerProfileStore: {
+        findProfileByName: vi.fn(async () => null),
+        getProfile: vi.fn(async () => null)
+      }
+    });
+
+    vadSegments.push({ samples: new Float32Array([0.1, -0.1]), start: 0 });
+    decodeSegmentMock.mockReturnValue({
+      lang: "zh",
+      text: "先显示原文。",
+      timestamps: [0],
+      tokens: ["先显示原文。"]
+    });
+
+    await engine.startRecording();
+    await engine.pushAudioChunk({
+      deviceId: "default",
+      deviceLabel: "Built-in Mic",
+      rms: 0.3,
+      sampleRate: 16_000,
+      samples: new Float32Array(512)
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(engine.getLiveStageSnapshot().activeSegment).toEqual(
+      expect.objectContaining({
+        improvedAutoTranscript: "improved:先显示原文。",
+        jaTranslation: null,
+        rawTranscript: "先显示原文。"
+      })
+    );
+
+    translationResolver("ja:improved:先显示原文。");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(engine.getLiveStageSnapshot().activeSegment).toEqual(
+      expect.objectContaining({
+        jaTranslation: "ja:improved:先显示原文。",
+        status: "translation_ready"
+      })
+    );
+
+    await engine.stopRecording();
+  });
 });
 
 function buildSettings(recording: Partial<AppSettings["recording"]>): AppSettings {

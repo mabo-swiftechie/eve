@@ -18,6 +18,7 @@ import {
 import { buildLiveStageSnapshot } from "./desktop-engine-live-stage";
 import { transcribeAudioDirectory } from "./desktop-engine-transcribe";
 import { inferDetectedLanguage } from "./language-routing";
+import { backfillChineseTranslation } from "./live-stage-translation";
 import { ModelManager } from "./model-manager";
 import { SpeakerIdentifier, getDefaultSpeakerRegistryPath } from "./speaker-identifier";
 import { improveTranscript as defaultImproveTranscript } from "./segment-enhancer";
@@ -369,22 +370,12 @@ export class DesktopEngine {
       const speakerDisplayName = speakerProfile?.displayName ?? speaker ?? "Speaker A";
       const detectedLanguage = inferDetectedLanguage(result.lang, text);
       const improvedAutoTranscript = this.improveTranscript(text, detectedLanguage, speakerProfile);
-      let jaTranslation: string | null = null;
-      if (detectedLanguage === "zh") {
-        try {
-          jaTranslation = await this.segmentTranslator.translateChineseToJapanese(
-            improvedAutoTranscript
-          );
-        } catch (error) {
-          log.warn("[eve][engine] failed to translate zh segment", error);
-        }
-      }
       const enrichedSegment = buildEnrichedSegmentRecord({
         audioClipRef: this.segment.audioPath,
         confidence,
         detectedLanguage,
         improvedAutoTranscript,
-        jaTranslation,
+        jaTranslation: null,
         rawDetectedLanguage: result.lang,
         rawTranscript: text,
         recordingId: this.segment.recordingId,
@@ -411,6 +402,15 @@ export class DesktopEngine {
         statusMessage: enrichedSegment.speakerDisplayName
           ? `Speech recognized (${enrichedSegment.speakerDisplayName}).`
           : "Speech recognized."
+      });
+      backfillChineseTranslation({
+        detectedLanguage,
+        onError: (error) => {
+          log.warn("[eve][engine] failed to translate zh segment", error);
+        },
+        onTranslated: () => this.patchStatus({}),
+        segment: enrichedSegment,
+        segmentTranslator: this.segmentTranslator
       });
     }
   }

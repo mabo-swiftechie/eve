@@ -36,13 +36,37 @@ describe("LiveStageView", () => {
       />
     );
 
-    expect(markup).toContain("Debug");
+    expect(markup).toContain("Diagnostics");
     expect(markup).toContain("Raw lang");
     expect(markup).toContain("cmn");
     expect(markup).toContain("Normalized");
     expect(markup).toContain("zh");
     expect(markup).toContain("Route");
     expect(markup).toContain("zh→ja");
+  });
+
+  it("renders bilingual recent stage cards for chinese segments", () => {
+    const markup = renderToStaticMarkup(
+      <LiveStageView
+        snapshot={createSnapshot({
+          activeSegment: createSegment(),
+          recentSegments: [
+            createSegment(),
+            createSegment({
+              segmentId: "segment-2",
+              improvedAutoTranscript: "我们继续看这一段。",
+              jaTranslation: "この部分を続けて見ていきます。"
+            })
+          ]
+        })}
+      />
+    );
+
+    expect(markup).toContain("Recent stage segments");
+    expect(markup).toContain("Chinese improved");
+    expect(markup).toContain("Japanese display");
+    expect(markup).toContain("我们继续看这一段。");
+    expect(markup).toContain("この部分を続けて見ていきます。");
   });
 
   it("renders waiting state when no stable segment exists", () => {
@@ -55,9 +79,11 @@ describe("LiveStageView", () => {
 });
 
 function createSnapshot({
-  activeSegment
+  activeSegment,
+  recentSegments
 }: {
   activeSegment: SegmentRecord | null;
+  recentSegments?: SegmentRecord[];
 }): DesktopSnapshot {
   return {
     app: {
@@ -70,7 +96,7 @@ function createSnapshot({
     history: [],
     liveStage: {
       activeSegment,
-      recentSegments: activeSegment ? [activeSegment] : []
+      recentSegments: recentSegments ?? (activeSegment ? [activeSegment] : [])
     },
     permission: {
       message: "",
