@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "bun run dev:desktop",
     "dev:desktop": "bun run --filter ./apps/desktop dev",
+    "stop:desktop": "bash ./scripts/stop-desktop.sh",
+    "restart:desktop": "bun run stop:desktop && bun run dev:desktop",
     "build": "bun run --filter ./apps/desktop build",
     "build:desktop": "bun run --filter ./apps/desktop build",
     "setup:ffmpeg": "bun run --cwd apps/desktop setup:ffmpeg",

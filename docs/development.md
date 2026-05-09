@@ -7,6 +7,7 @@
 ```text
 apps/desktop        Electron main/preload/renderer, tray, packaging
 packages/shared     Shared TypeScript contracts for main + renderer
+scripts             Workspace-level development helpers
 ```
 
 ## Requirements
@@ -28,9 +29,17 @@ bun install
 
 ```bash
 bun run dev:desktop
+bun run stop:desktop
+bun run restart:desktop
 ```
 
 The app is Electron-only. There is no Python runtime or CLI sidecar anymore.
+
+Helpful workflow notes:
+
+- `stop:desktop` targets matching Eve desktop development processes under the current workspace
+- `restart:desktop` is a convenience wrapper around stop + start
+- `bash scripts/stop-desktop.sh --dry-run` shows which processes would be stopped
 
 ## Checks
 

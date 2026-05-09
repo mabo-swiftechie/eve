@@ -21,6 +21,14 @@ Eve Recorder（原名 `eve`，取自 `eavesdropper`）是一个以托盘常驻�
 - 中英双语界面
 - 亮色 / 暗色 / 跟随系统主题
 
+## 项目结构
+
+```text
+apps/desktop        Electron 主进程 / preload / renderer、托盘、打包
+packages/shared     主进程与渲染进程共享的 TypeScript 类型
+scripts             工作区级开发辅助脚本
+```
+
 ## 桌面应用预览
 
 ![Eve Recorder 桌面应用](docs/images/desktop-gui-preview.png)
@@ -36,6 +44,19 @@ Eve Recorder（原名 `eve`，取自 `eavesdropper`）是一个以托盘常驻�
 ## 运行说明
 
 - 首次开始录音或转写时，Eve Recorder 会自动下载 Qwen3 ASR 和 Silero VAD 模型，并缓存到应用用户数据目录。
+
+## 开发快捷命令
+
+```bash
+bun run dev:desktop
+bun run stop:desktop
+bun run restart:desktop
+```
+
+- `dev:desktop` 启动 Electron 桌面端开发环境
+- `stop:desktop` 停止当前工作区匹配到的 Eve 桌面开发进程
+- `restart:desktop` 先停止当前桌面开发进程，再重新启动
+- `bash scripts/stop-desktop.sh --dry-run` 可先查看哪些进程会被停止
 
 ## 复核流程
 

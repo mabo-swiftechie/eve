@@ -7,6 +7,7 @@
 ```text
 apps/desktop        Electron 主进程 / preload / renderer、托盘、打包
 packages/shared     主进程与渲染进程共享的 TypeScript 类型
+scripts             工作区级开发辅助脚本
 ```
 
 ## 环境要求
@@ -28,9 +29,17 @@ bun install
 
 ```bash
 bun run dev:desktop
+bun run stop:desktop
+bun run restart:desktop
 ```
 
 现在项目已经是纯 Electron 架构，不再包含 Python runtime 或 sidecar CLI。
+
+开发辅助说明：
+
+- `stop:desktop` 会停止当前工作区匹配到的 Eve 桌面开发进程
+- `restart:desktop` 是停止后再启动的便捷封装
+- `bash scripts/stop-desktop.sh --dry-run` 可先查看哪些进程会被停止
 
 ## 检查与测试
 

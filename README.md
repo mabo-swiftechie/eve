@@ -21,6 +21,14 @@ Eve Recorder (formerly `eve`, short for `eavesdropper`) is a tray-first desktop 
 - Bilingual UI (English / 中文)
 - Light / Dark / System theme
 
+## Project Structure
+
+```text
+apps/desktop        Electron main/preload/renderer, tray, packaging
+packages/shared     Shared TypeScript contracts for main + renderer
+scripts             Workspace-level development helpers
+```
+
 ## Desktop Preview
 
 ![Eve Recorder desktop app](docs/images/desktop-gui-preview.png)
@@ -36,6 +44,19 @@ The packaged app checks for updates automatically and installs them on quit.
 ## Runtime Notes
 
 - Eve Recorder downloads Qwen3 ASR and Silero VAD model files on first use and caches them under the app user-data directory.
+
+## Development Shortcuts
+
+```bash
+bun run dev:desktop
+bun run stop:desktop
+bun run restart:desktop
+```
+
+- `dev:desktop` starts the Electron desktop app in development mode
+- `stop:desktop` stops matching Eve desktop development processes for the current workspace
+- `restart:desktop` stops the current desktop dev processes, then starts them again
+- `bash scripts/stop-desktop.sh --dry-run` shows which processes would be stopped
 
 ## Review Workflow
 
