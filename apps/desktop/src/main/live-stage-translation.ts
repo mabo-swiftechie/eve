@@ -2,7 +2,16 @@ import type { SegmentRecord } from "@eve/shared";
 import type { SegmentTranslator } from "./segment-translator";
 
 const TRANSLATION_CHUNK_LIMIT = 48;
-let latestTranslationRequestId = 0;
+
+type TranslationTask = {
+  onError: (error: unknown) => void;
+  onTranslated: () => void;
+  segment: SegmentRecord;
+  segmentTranslator: SegmentTranslator;
+};
+
+let activeTaskPromise: Promise<void> | null = null;
+let pendingTask: TranslationTask | null = null;
 
 export function backfillChineseTranslation({
   detectedLanguage,
@@ -21,35 +30,18 @@ export function backfillChineseTranslation({
   if (detectedLanguage !== "zh" || !improvedText) {
     return;
   }
-  const requestId = ++latestTranslationRequestId;
-  void (async () => {
-    try {
-      const chunks = splitTranslationChunks(improvedText);
-      const translatedChunks: string[] = [];
-      for (const chunk of chunks) {
-        if (requestId !== latestTranslationRequestId) {
-          return;
-        }
-        const jaTranslation = await segmentTranslator.translateChineseToJapanese(chunk);
-        if (requestId !== latestTranslationRequestId) {
-          return;
-        }
-        if (!jaTranslation?.trim()) {
-          continue;
-        }
-        translatedChunks.push(jaTranslation.trim());
-        segment.jaTranslation = translatedChunks.join("");
-        segment.status = "translation_ready";
-        onTranslated();
-      }
-    } catch (error) {
-      onError(error);
-    }
-  })();
+  pendingTask = {
+    onError,
+    onTranslated,
+    segment,
+    segmentTranslator
+  };
+  activeTaskPromise ??= drainTranslationQueue();
 }
 
 export function resetLiveStageTranslationPriority(): void {
-  latestTranslationRequestId = 0;
+  activeTaskPromise = null;
+  pendingTask = null;
 }
 
 export function splitTranslationChunks(text: string): string[] {
@@ -89,6 +81,49 @@ export function splitTranslationChunks(text: string): string[] {
       ? [chunk]
       : splitFallbackChunks(chunk);
   });
+}
+
+async function drainTranslationQueue(): Promise<void> {
+  try {
+    while (pendingTask) {
+      const task = pendingTask;
+      pendingTask = null;
+      await runTranslationTask(task);
+    }
+  } finally {
+    activeTaskPromise = null;
+    if (pendingTask) {
+      activeTaskPromise = drainTranslationQueue();
+    }
+  }
+}
+
+async function runTranslationTask({
+  onError,
+  onTranslated,
+  segment,
+  segmentTranslator
+}: TranslationTask): Promise<void> {
+  const improvedText = segment.improvedAutoTranscript;
+  if (!improvedText) {
+    return;
+  }
+  try {
+    const chunks = splitTranslationChunks(improvedText);
+    const translatedChunks: string[] = [];
+    for (const chunk of chunks) {
+      const jaTranslation = await segmentTranslator.translateChineseToJapanese(chunk);
+      if (!jaTranslation?.trim()) {
+        continue;
+      }
+      translatedChunks.push(jaTranslation.trim());
+      segment.jaTranslation = translatedChunks.join("");
+      segment.status = "translation_ready";
+      onTranslated();
+    }
+  } catch (error) {
+    onError(error);
+  }
 }
 
 function splitFallbackChunks(text: string): string[] {

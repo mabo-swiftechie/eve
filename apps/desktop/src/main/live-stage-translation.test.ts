@@ -57,20 +57,24 @@ describe("backfillChineseTranslation", () => {
     expect(segment.status).toBe("translation_ready");
   });
 
-  it("stops older segment chunks when a newer zh segment arrives", async () => {
+  it("finishes the current request and then runs only the newest queued segment", async () => {
     let resolveFirstOldChunk: ((value: string) => void) | null = null;
     let resolveSecondOldChunk: ((value: string) => void) | null = null;
-    let resolveNewChunk: ((value: string) => void) | null = null;
+    let resolveNewestChunk: ((value: string) => void) | null = null;
     const oldSegment = createSegment(
       "第一句比较长，但是还在一个合理范围内。第二句也不短，而且应该被拆成新的翻译块。第三句继续补充说明。"
     );
-    const newSegment = createSegment("新的句子来了。");
+    const staleMiddleSegment = createSegment("中间那句其实已经过时了。");
+    const newestSegment = createSegment("新的句子来了。");
     const translator = {
       translateChineseToJapanese: vi.fn((text: string) => {
         if (text === "新的句子来了。") {
           return new Promise<string>((resolve) => {
-            resolveNewChunk = resolve;
+            resolveNewestChunk = resolve;
           });
+        }
+        if (text === "中间那句其实已经过时了。") {
+          return Promise.resolve("这条不该被执行。");
         }
         if (!resolveFirstOldChunk) {
           return new Promise<string>((resolve) => {
@@ -97,18 +101,28 @@ describe("backfillChineseTranslation", () => {
       detectedLanguage: "zh",
       onError: vi.fn(),
       onTranslated: vi.fn(),
-      segment: newSegment,
+      segment: staleMiddleSegment,
       segmentTranslator: translator
     });
-    expect(resolveNewChunk).toBeTypeOf("function");
+    backfillChineseTranslation({
+      detectedLanguage: "zh",
+      onError: vi.fn(),
+      onTranslated: vi.fn(),
+      segment: newestSegment,
+      segmentTranslator: translator
+    });
     expect(resolveSecondOldChunk).toBeTypeOf("function");
-    resolveNewChunk!("新段翻译。");
     resolveSecondOldChunk!("旧段第二块。");
     await Promise.resolve();
     await Promise.resolve();
+    expect(resolveNewestChunk).toBeTypeOf("function");
+    resolveNewestChunk!("新段翻译。");
+    await Promise.resolve();
+    await Promise.resolve();
 
-    expect(oldSegment.jaTranslation).toBe("旧段第一块。");
-    expect(newSegment.jaTranslation).toBe("新段翻译。");
+    expect(oldSegment.jaTranslation).toBe("旧段第一块。旧段第二块。");
+    expect(staleMiddleSegment.jaTranslation).toBeNull();
+    expect(newestSegment.jaTranslation).toBe("新段翻译。");
   });
 });
 
