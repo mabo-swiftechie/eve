@@ -24,6 +24,27 @@ describe("LiveStageView", () => {
     expect(markup).toContain("長文も短文もあります、この設計ですね。");
   });
 
+  it("renders live stage diagnostics for language routing", () => {
+    const markup = renderToStaticMarkup(
+      <LiveStageView
+        snapshot={createSnapshot({
+          activeSegment: createSegment({
+            detectedLanguage: "zh",
+            rawDetectedLanguage: "cmn"
+          })
+        })}
+      />
+    );
+
+    expect(markup).toContain("Debug");
+    expect(markup).toContain("Raw lang");
+    expect(markup).toContain("cmn");
+    expect(markup).toContain("Normalized");
+    expect(markup).toContain("zh");
+    expect(markup).toContain("Route");
+    expect(markup).toContain("zh→ja");
+  });
+
   it("renders waiting state when no stable segment exists", () => {
     const markup = renderToStaticMarkup(
       <LiveStageView snapshot={createSnapshot({ activeSegment: null })} />
@@ -79,7 +100,9 @@ function createSnapshot({
   };
 }
 
-function createSegment(): SegmentRecord {
+function createSegment(
+  overrides: Partial<SegmentRecord> = {}
+): SegmentRecord {
   return {
     audioClipRef: "/tmp/segment.wav",
     detectedLanguage: "zh",
@@ -93,6 +116,7 @@ function createSegment(): SegmentRecord {
     speakerDisplayName: "王晋",
     speakerId: "speaker-wj",
     startAt: "2026-05-08T11:00:00.000Z",
-    status: "translation_ready"
+    status: "translation_ready",
+    ...overrides
   };
 }

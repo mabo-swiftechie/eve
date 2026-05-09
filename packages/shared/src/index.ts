@@ -113,6 +113,7 @@ export interface SegmentRecord {
   jaTranslation: string | null;
   manualCorrectedTranscript: string | null;
   manualSentenceCorrections?: SentenceCorrection[];
+  rawDetectedLanguage?: string | null;
   rawTranscript: string;
   recordingId: string;
   segmentId: string;

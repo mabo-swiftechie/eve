@@ -43,12 +43,24 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
           </div>
         </div>
 
+        <div className="mt-4 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+            Debug
+          </p>
+          <dl className="mt-3 grid gap-3 text-sm text-[color:var(--foreground)] md:grid-cols-2 xl:grid-cols-4">
+            <DebugField label="Raw lang" value={segment.rawDetectedLanguage ?? "unknown"} />
+            <DebugField label="Normalized" value={segment.detectedLanguage} />
+            <DebugField label="Route" value={stageRoute(segment)} />
+            <DebugField label="Translation" value={translationState(segment)} />
+          </dl>
+        </div>
+
         <div className="mt-5 grid gap-4 lg:grid-cols-2">
           <article className="rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
               {primaryLabel(segment, t)}
             </p>
-            <p className="mt-3 text-lg leading-8 text-[color:var(--foreground)]">
+            <p className="mt-3 whitespace-pre-wrap break-words text-lg leading-8 text-[color:var(--foreground)]">
               {segment.improvedAutoTranscript ?? segment.rawTranscript}
             </p>
           </article>
@@ -56,7 +68,7 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
               {secondaryLabel(segment, t)}
             </p>
-            <p className="mt-3 text-lg leading-8 text-[color:var(--foreground)]">
+            <p className="mt-3 whitespace-pre-wrap break-words text-lg leading-8 text-[color:var(--foreground)]">
               {secondaryText(segment, t)}
             </p>
           </article>
@@ -129,4 +141,28 @@ function secondaryText(
     return segment.jaTranslation ?? t("liveStageTranslationPending");
   }
   return t("liveStageJapaneseDirectDescription");
+}
+
+function stageRoute(segment: SegmentRecord): string {
+  return segment.detectedLanguage === "zh" ? "zh→ja" : "ja-direct";
+}
+
+function translationState(segment: SegmentRecord): string {
+  if (segment.detectedLanguage !== "zh") {
+    return "not-applicable";
+  }
+  return segment.jaTranslation ? "ready" : "pending";
+}
+
+function DebugField({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
+        {label}
+      </dt>
+      <dd className="mt-1 break-all text-sm leading-6 text-[color:var(--foreground)]">
+        {value}
+      </dd>
+    </div>
+  );
 }

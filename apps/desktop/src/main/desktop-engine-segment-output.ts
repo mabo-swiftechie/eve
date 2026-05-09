@@ -43,6 +43,7 @@ interface BuildEnrichedSegmentRecordOptions {
   detectedLanguage: string;
   improvedAutoTranscript: string | null;
   jaTranslation: string | null;
+  rawDetectedLanguage?: string | null;
   rawTranscript: string;
   recordingId: string;
   sentenceCues?: SentenceCue[];
@@ -84,6 +85,7 @@ export function buildEnrichedSegmentRecord({
   detectedLanguage,
   improvedAutoTranscript,
   jaTranslation,
+  rawDetectedLanguage,
   rawTranscript,
   recordingId,
   sentenceCues,
@@ -103,6 +105,7 @@ export function buildEnrichedSegmentRecord({
     improvedAutoTranscript,
     jaTranslation,
     manualCorrectedTranscript: null,
+    rawDetectedLanguage: rawDetectedLanguage?.trim() || null,
     rawTranscript,
     recordingId,
     segmentId: randomUUID(),
@@ -202,6 +205,7 @@ function serializeSegmentRecord(
     ja_translation: segment.jaTranslation,
     manual_corrected_transcript: segment.manualCorrectedTranscript,
     raw_transcript: segment.rawTranscript,
+    raw_detected_language: segment.rawDetectedLanguage ?? null,
     recording_id: segment.recordingId,
     segment_id: segment.segmentId,
     sentence_cues: segment.sentenceCues ?? [],

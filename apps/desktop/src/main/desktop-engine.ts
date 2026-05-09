@@ -384,6 +384,7 @@ export class DesktopEngine {
         detectedLanguage,
         improvedAutoTranscript,
         jaTranslation,
+        rawDetectedLanguage: result.lang,
         rawTranscript: text,
         recordingId: this.segment.recordingId,
         sentenceCues: buildSentenceCues({

@@ -175,6 +175,7 @@ function parseSegment(
     jaTranslation: toNullableText(value.ja_translation),
     manualCorrectedTranscript: toNullableText(value.manual_corrected_transcript),
     manualSentenceCorrections: parseSentenceCorrections(value.manual_sentence_corrections),
+    rawDetectedLanguage: toNullableText(value.raw_detected_language),
     rawTranscript,
     recordingId: toText(value.recording_id),
     segmentId,
