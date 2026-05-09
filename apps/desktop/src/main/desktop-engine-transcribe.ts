@@ -3,10 +3,10 @@ import { readdir } from "node:fs/promises";
 import { basename, extname, join, resolve } from "node:path";
 import {
   buildEnrichedSegmentRecord,
-  buildSentenceCues,
-  normalizeLanguage
+  buildSentenceCues
 } from "./desktop-engine-segment-output";
 import { transcribeAudioFile, writeJsonAtomic } from "./audio-utils";
+import { inferDetectedLanguage } from "./language-routing";
 import type { SegmentTranslator } from "./segment-translator";
 
 const AUDIO_EXTENSIONS = new Set([".flac", ".wav"]);
@@ -42,7 +42,7 @@ export async function transcribeAudioDirectory({
     const jsonPath = `${audioPath.slice(0, -extname(audioPath).length)}.json`;
     const result = await transcribeAudioFile(recognizer, audioPath);
     const rawTranscript = result.text.trim();
-    const detectedLanguage = normalizeLanguage(result.lang);
+    const detectedLanguage = inferDetectedLanguage(result.lang, rawTranscript);
     const improvedAutoTranscript = improveTranscript(rawTranscript, detectedLanguage, null);
     let jaTranslation: string | null = null;
     if (detectedLanguage === "zh") {

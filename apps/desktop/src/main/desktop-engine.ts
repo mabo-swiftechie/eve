@@ -12,12 +12,12 @@ import {
   buildEnrichedSegmentRecord,
   buildSentenceCues,
   createRecordingSegment,
-  normalizeLanguage,
   persistRecordingSegment,
   type RecordingSegment
 } from "./desktop-engine-segment-output";
 import { buildLiveStageSnapshot } from "./desktop-engine-live-stage";
 import { transcribeAudioDirectory } from "./desktop-engine-transcribe";
+import { inferDetectedLanguage } from "./language-routing";
 import { ModelManager } from "./model-manager";
 import { SpeakerIdentifier, getDefaultSpeakerRegistryPath } from "./speaker-identifier";
 import { improveTranscript as defaultImproveTranscript } from "./segment-enhancer";
@@ -366,7 +366,7 @@ export class DesktopEngine {
         : null;
       const speakerId = speakerProfile?.speakerId ?? null;
       const speakerDisplayName = speakerProfile?.displayName ?? speaker ?? "Speaker A";
-      const detectedLanguage = normalizeLanguage(result.lang);
+      const detectedLanguage = inferDetectedLanguage(result.lang, text);
       const improvedAutoTranscript = this.improveTranscript(text, detectedLanguage, speakerProfile);
       let jaTranslation: string | null = null;
       if (detectedLanguage === "zh") {
