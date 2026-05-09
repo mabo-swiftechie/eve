@@ -1,7 +1,5 @@
 import log from "electron-log/main";
-import {
-  DEFAULT_SETTINGS, DEFAULT_STATUS, type AppSettings, type DeviceInfo, type RecorderStatusSnapshot
-} from "@eve/shared";
+import { DEFAULT_SETTINGS, DEFAULT_STATUS, type AppSettings, type DeviceInfo, type LiveStageSnapshot, type RecorderStatusSnapshot } from "@eve/shared";
 import {
   buildWaveformBins,
   createSenseVoiceRecognizer,
@@ -18,6 +16,7 @@ import {
   persistRecordingSegment,
   type RecordingSegment
 } from "./desktop-engine-segment-output";
+import { buildLiveStageSnapshot } from "./desktop-engine-live-stage";
 import { transcribeAudioDirectory } from "./desktop-engine-transcribe";
 import { ModelManager } from "./model-manager";
 import { SpeakerIdentifier, getDefaultSpeakerRegistryPath } from "./speaker-identifier";
@@ -150,6 +149,8 @@ export class DesktopEngine {
   }
 
   getStatus(): RecorderStatusSnapshot { return { ...this.status }; }
+
+  getLiveStageSnapshot(): LiveStageSnapshot { return buildLiveStageSnapshot(this.segment); }
 
   updateDevices(devices: DeviceInfo[]): void { this.devices = devices; }
 
@@ -425,8 +426,8 @@ export class DesktopEngine {
   }
 
   private shouldRotateSegment(): boolean {
-    if (!this.segment) return false;
-    return Date.now() - this.segment.startedAt.getTime() >= this.settings.recording.segmentMinutes * 60_000;
+    return !!this.segment &&
+      Date.now() - this.segment.startedAt.getTime() >= this.settings.recording.segmentMinutes * 60_000;
   }
 
   private async rotateSegment(deviceLabel: string): Promise<void> {
@@ -440,11 +441,7 @@ export class DesktopEngine {
   }
 
   private async openSegment(deviceLabel?: string): Promise<RecordingSegment> {
-    return createRecordingSegment({
-      deviceLabel: deviceLabel || this.status.deviceLabel || "default",
-      disableAsr: this.settings.recording.disableAsr,
-      outputDir: this.settings.recording.outputDir
-    });
+    return createRecordingSegment({ deviceLabel: deviceLabel || this.status.deviceLabel || "default", disableAsr: this.settings.recording.disableAsr, outputDir: this.settings.recording.outputDir });
   }
 
   private async closeSegment(): Promise<void> {
@@ -466,23 +463,16 @@ export class DesktopEngine {
     return this.asrBackpressureActive;
   }
 
-  private async waitForPendingAudio(): Promise<void> {
-    if (!this.processingAudioQueue && this.pendingAudioChunks.length === 0) return;
-    await new Promise<void>((resolve) => this.queueIdleWaiters.add(resolve));
-  }
+  private async waitForPendingAudio(): Promise<void> { if (!this.processingAudioQueue && this.pendingAudioChunks.length === 0) return; await new Promise<void>((resolve) => this.queueIdleWaiters.add(resolve)); }
 
   private elapsedLabel(): string {
     const elapsedSeconds = Math.max(0, Math.floor((Date.now() - this.recordingStartedAt) / 1000));
     const hours = Math.floor(elapsedSeconds / 3600).toString().padStart(2, "0");
     const minutes = Math.floor((elapsedSeconds % 3600) / 60).toString().padStart(2, "0");
-    const seconds = (elapsedSeconds % 60).toString().padStart(2, "0");
-    return `${hours}:${minutes}:${seconds}`;
+    return `${hours}:${minutes}:${(elapsedSeconds % 60).toString().padStart(2, "0")}`;
   }
 
-  private patchStatus(patch: Partial<RecorderStatusSnapshot>): void {
-    this.status = { ...this.status, ...patch };
-    this.onStatus(this.getStatus());
-  }
+  private patchStatus(patch: Partial<RecorderStatusSnapshot>): void { this.status = { ...this.status, ...patch }; this.onStatus(this.getStatus()); }
 
   private logDiagnostics(reason: string, { force = false }: { force?: boolean } = {}): void {
     const now = Date.now();

@@ -1,8 +1,10 @@
 import {
   DEFAULT_SETTINGS,
   DEFAULT_STATUS,
+  EMPTY_LIVE_STAGE_SNAPSHOT,
   type AppSettings,
   type DeviceInfo,
+  type LiveStageSnapshot,
   type RecorderStatusSnapshot
 } from "@eve/shared";
 
@@ -35,6 +37,7 @@ export class TestDesktopEngine {
     statusMessage: "E2E desktop engine ready.",
     vadReady: true
   };
+  private liveStage: LiveStageSnapshot = EMPTY_LIVE_STAGE_SNAPSHOT;
   private recordingStartedAt = 0;
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -63,6 +66,10 @@ export class TestDesktopEngine {
     return { ...this.status };
   }
 
+  getLiveStageSnapshot(): LiveStageSnapshot {
+    return this.liveStage;
+  }
+
   updateDevices(devices: DeviceInfo[]): void {
     this.devices = devices;
     this.patchStatus({
@@ -84,6 +91,33 @@ export class TestDesktopEngine {
       return;
     }
     this.recordingStartedAt = Date.now();
+    this.liveStage = this.settings.recording.disableAsr
+      ? EMPTY_LIVE_STAGE_SNAPSHOT
+      : {
+          activeSegment: {
+            audioClipRef: "/tmp/eve-test-segment.wav",
+            detectedLanguage: "zh",
+            endAt: new Date(this.recordingStartedAt + 2_000).toISOString(),
+            improvedAutoTranscript: "测试模式下的中文改善版。",
+            jaTranslation: "テストモードの中国語改善版です。",
+            manualCorrectedTranscript: null,
+            rawTranscript: "测试模式下的中文原文。",
+            recordingId: "test-recording",
+            segmentId: "test-segment-1",
+            sentenceCues: [
+              {
+                endMs: 2_000,
+                startMs: 0,
+                text: "测试模式下的中文原文。"
+              }
+            ],
+            speakerDisplayName: "Speaker A",
+            speakerId: null,
+            startAt: new Date(this.recordingStartedAt).toISOString(),
+            status: "translation_ready"
+          },
+          recentSegments: []
+        };
     this.patchStatus({
       asrEnabled: !this.settings.recording.disableAsr,
       asrHistory: [],
@@ -109,6 +143,10 @@ export class TestDesktopEngine {
       return;
     }
     this.clearTimer();
+    this.liveStage = {
+      ...this.liveStage,
+      activeSegment: null
+    };
     this.patchStatus({
       asrHistory: this.settings.recording.disableAsr ? [] : ["Playwright test transcript."],
       asrPreview: "",

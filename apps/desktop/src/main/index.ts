@@ -23,6 +23,7 @@ type DesktopEngineLike = Pick<
   DesktopEngine,
   | "applySettings"
   | "getDevices"
+  | "getLiveStageSnapshot"
   | "getReady"
   | "getStatus"
   | "updateDevices"
@@ -86,7 +87,7 @@ const buildSnapshot = (): DesktopSnapshot => {
     devices: cachedDevices,
     engineReady: engine?.getReady() ?? false,
     history: cachedHistory,
-    liveStage: EMPTY_LIVE_STAGE_SNAPSHOT,
+    liveStage: engine?.getLiveStageSnapshot() ?? EMPTY_LIVE_STAGE_SNAPSHOT,
     permission: cachedPermission,
     review: cachedReview,
     settings,
