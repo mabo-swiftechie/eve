@@ -33,6 +33,34 @@ describe("createDefaultSegmentTranslator", () => {
 
     expect(translator).toBeInstanceOf(OpenAISegmentTranslator);
   });
+
+  it("sanitizes multiline OpenAI API key values", async () => {
+    process.env.OPENAI_API_KEY = "first-key\nsecond-key";
+
+    const translator = createDefaultSegmentTranslator();
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          output_text: "これは日本語訳です。"
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        }
+      )
+    ) as typeof fetch;
+
+    await translator.translateChineseToJapanese("这是中文。");
+
+    expect(fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses",
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: "Bearer first-key"
+        })
+      })
+    );
+  });
 });
 
 describe("OpenAISegmentTranslator", () => {

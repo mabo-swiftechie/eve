@@ -24,7 +24,7 @@ export class OpenAISegmentTranslator implements SegmentTranslator {
     baseUrl = process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1",
     model = process.env.EVE_OPENAI_TRANSLATION_MODEL ?? "gpt-5-mini"
   }: OpenAISegmentTranslatorOptions) {
-    this.apiKey = apiKey;
+    this.apiKey = sanitizeApiKey(apiKey);
     this.baseUrl = baseUrl.replace(/\/$/, "");
     this.model = model;
   }
@@ -60,7 +60,7 @@ export class OpenAISegmentTranslator implements SegmentTranslator {
 }
 
 export function createDefaultSegmentTranslator(): SegmentTranslator {
-  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  const apiKey = sanitizeApiKey(process.env.OPENAI_API_KEY);
   if (!apiKey) {
     return new PassthroughSegmentTranslator();
   }
@@ -88,4 +88,9 @@ function readOutputText(payload: OpenAIResponsesPayload): string {
     .map((item) => item.text?.trim() ?? "")
     .filter((item) => item.length > 0)
     .join("\n");
+}
+
+function sanitizeApiKey(value: string | null | undefined): string {
+  const token = value?.split(/\s+/).find((item) => item.length > 0);
+  return token?.trim() ?? "";
 }
