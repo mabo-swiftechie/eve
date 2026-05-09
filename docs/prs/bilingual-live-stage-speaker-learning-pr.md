@@ -33,6 +33,20 @@
 ## Notes
 - the renderer test environment is still `node`, not `jsdom`, so the new review interaction coverage is implemented through extracted state helpers instead of browser-level click simulation
 - `Review & Learn` has been split into smaller panels to keep file sizes within repo limits and make follow-up iteration safer
+
+## Launch strategy note
+- live bilingual meeting mode is now expected to move toward a `raw-first` display strategy
+- the intended direction is progressive upgrade of the same segment:
+  - `V0 Raw`
+  - `V1 Fast Translate`
+  - `V2 Speaker Improve`
+  - `V3 Fluency Improve`
+  - `V4 Stable Final`
+- operator-facing display levels should stay simple:
+  - `L1 Fast`
+  - `L2 Balanced`
+  - `L3 Stable`
+- higher-quality stages must not block the first visible subtitle on screen
 ```
 
 ## Review self-check
@@ -64,6 +78,7 @@
 ### Remaining risks
 - there is still no browser-DOM interaction test because the desktop vitest environment remains `node`
 - candidate learning is still conservative and driven by review data; it does not yet include broader automatic rule mining heuristics
+- the current live stage implementation has been wired to engine segments, but the raw-first progressive level model is still tracked as follow-up work
 - upstream review may still ask for PR splitting because this branch covers multiple closely related review workflow milestones
 
 ## Current branch
