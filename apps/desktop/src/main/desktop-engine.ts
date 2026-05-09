@@ -22,6 +22,7 @@ import { ModelManager } from "./model-manager";
 import { SpeakerIdentifier, getDefaultSpeakerRegistryPath } from "./speaker-identifier";
 import { improveTranscript as defaultImproveTranscript } from "./segment-enhancer";
 import {
+  createDefaultSegmentTranslator,
   PassthroughSegmentTranslator,
   type SegmentTranslator
 } from "./segment-translator";
@@ -77,7 +78,7 @@ export class DesktopEngine {
 
   constructor(onStatus: StatusListener, {
     improveTranscript = defaultImproveTranscript,
-    segmentTranslator = new PassthroughSegmentTranslator(),
+    segmentTranslator = createDefaultSegmentTranslator(),
     speakerProfileStore = new SpeakerProfileStore()
   }: DesktopEngineDependencies = {}) {
     this.onStatus = onStatus;

@@ -58,6 +58,19 @@ bun run restart:desktop
 - `restart:desktop` 先停止当前桌面开发进程，再重新启动
 - `bash scripts/stop-desktop.sh --dry-run` 可先查看哪些进程会被停止
 
+## OpenAI 实时翻译
+
+如需在 `Live Stage` 中为中文分段补日文翻译，先在启动前配置：
+
+```bash
+export OPENAI_API_KEY="your_api_key_here"
+export EVE_OPENAI_TRANSLATION_MODEL="gpt-5-mini"
+```
+
+- `OPENAI_API_KEY` 未配置时，应用会回退到本地 `Passthrough` translator，只显示原文
+- `EVE_OPENAI_TRANSLATION_MODEL` 可选，当前默认值是 `gpt-5-mini`
+- 当前接入的是文本分段翻译链路：`raw` 先显示，日文异步补上
+
 ## 复核流程
 
 - 在 `历史` 中打开某一天录音，进入 `复核与学习`

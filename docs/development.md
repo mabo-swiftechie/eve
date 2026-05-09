@@ -41,6 +41,16 @@ Helpful workflow notes:
 - `restart:desktop` is a convenience wrapper around stop + start
 - `bash scripts/stop-desktop.sh --dry-run` shows which processes would be stopped
 
+To enable OpenAI Chinese-to-Japanese translation before launch, export:
+
+```bash
+export OPENAI_API_KEY="your_api_key_here"
+export EVE_OPENAI_TRANSLATION_MODEL="gpt-5-mini"
+```
+
+- `OPENAI_API_KEY` is required
+- `EVE_OPENAI_TRANSLATION_MODEL` is optional and defaults to `gpt-5-mini`
+
 ## Checks
 
 ```bash

@@ -41,6 +41,16 @@ bun run restart:desktop
 - `restart:desktop` 是停止后再启动的便捷封装
 - `bash scripts/stop-desktop.sh --dry-run` 可先查看哪些进程会被停止
 
+如需启用 OpenAI 中文到日文翻译，在启动前导出：
+
+```bash
+export OPENAI_API_KEY="your_api_key_here"
+export EVE_OPENAI_TRANSLATION_MODEL="gpt-5-mini"
+```
+
+- `OPENAI_API_KEY` 必填
+- `EVE_OPENAI_TRANSLATION_MODEL` 可选，默认 `gpt-5-mini`
+
 ## 检查与测试
 
 ```bash

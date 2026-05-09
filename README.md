@@ -58,6 +58,19 @@ bun run restart:desktop
 - `restart:desktop` stops the current desktop dev processes, then starts them again
 - `bash scripts/stop-desktop.sh --dry-run` shows which processes would be stopped
 
+## OpenAI Live Translation
+
+To backfill Japanese output for Chinese segments in `Live Stage`, export these before launch:
+
+```bash
+export OPENAI_API_KEY="your_api_key_here"
+export EVE_OPENAI_TRANSLATION_MODEL="gpt-5-mini"
+```
+
+- without `OPENAI_API_KEY`, the app falls back to the local passthrough translator and keeps showing only source text
+- `EVE_OPENAI_TRANSLATION_MODEL` is optional; the current default is `gpt-5-mini`
+- the current integration is text-segment based: raw text appears first, then Japanese fills in asynchronously
+
 ## Review Workflow
 
 - Use `History` to open a recording day in `Review & Learn`
