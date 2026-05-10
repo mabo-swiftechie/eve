@@ -97,17 +97,29 @@ describe("OpenAISegmentTranslator", () => {
   });
 
   it("returns null when OpenAI responds without translated text", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          output_text: ""
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        }
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: ""
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
       )
-    );
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: ""
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      );
 
     const translator = new OpenAISegmentTranslator({ apiKey: "test-key" });
     const translated = await translator.translateChineseToJapanese("这是中文。");
@@ -116,21 +128,97 @@ describe("OpenAISegmentTranslator", () => {
   });
 
   it("treats an unchanged chinese echo as untranslated", async () => {
-    fetchMock.mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          output_text: "这是中文。"
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json" }
-        }
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: "这是中文。"
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
       )
-    );
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: "这是中文。"
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      );
 
     const translator = new OpenAISegmentTranslator({ apiKey: "test-key" });
     const translated = await translator.translateChineseToJapanese("这是中文。");
 
     expect(translated).toBeNull();
+  });
+
+  it("retries with stricter instructions when the first response is still chinese", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: "这是中文。"
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: "これは中国語です。"
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      );
+
+    const translator = new OpenAISegmentTranslator({ apiKey: "test-key" });
+    const translated = await translator.translateChineseToJapanese("这是中文。");
+
+    expect(translated).toBe("これは中国語です。");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats mixed chinese leftovers as untranslated", async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: "これは導入です。后半部分还是中文。"
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            output_text: "これは導入です。后半部分还是中文。"
+          }),
+          {
+            status: 200,
+            headers: { "Content-Type": "application/json" }
+          }
+        )
+      );
+
+    const translator = new OpenAISegmentTranslator({ apiKey: "test-key" });
+    const translated = await translator.translateChineseToJapanese("这是中文，后半部分还是中文。");
+
+    expect(translated).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

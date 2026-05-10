@@ -7,6 +7,11 @@ const JAPANESE_TRANSLATION_INSTRUCTIONS =
   "Translate every clause and quoted speech fully into Japanese, " +
   "do not leave the original Chinese sentence unchanged, and return only the Japanese translation.";
 
+const JAPANESE_TRANSLATION_RETRY_INSTRUCTIONS =
+  "Translate the user's Chinese speech into idiomatic written Japanese. " +
+  "Every sentence must be fully rendered in Japanese grammar with kana where natural. " +
+  "Do not leave Chinese clauses unchanged except unavoidable proper nouns, and return only the Japanese translation.";
+
 export class PassthroughSegmentTranslator implements SegmentTranslator {
   async translateChineseToJapanese(_text: string): Promise<null> {
     return null;
@@ -39,7 +44,27 @@ export class OpenAISegmentTranslator implements SegmentTranslator {
     if (!input) {
       return null;
     }
+    const firstPass = await this.requestTranslation({
+      input,
+      instructions: JAPANESE_TRANSLATION_INSTRUCTIONS
+    });
+    if (isUsableJapaneseTranslation(input, firstPass)) {
+      return firstPass;
+    }
+    const retryPass = await this.requestTranslation({
+      input,
+      instructions: JAPANESE_TRANSLATION_RETRY_INSTRUCTIONS
+    });
+    return isUsableJapaneseTranslation(input, retryPass) ? retryPass : null;
+  }
 
+  private async requestTranslation({
+    input,
+    instructions
+  }: {
+    input: string;
+    instructions: string;
+  }): Promise<string> {
     const response = await fetch(`${this.baseUrl}/responses`, {
       method: "POST",
       headers: {
@@ -48,7 +73,7 @@ export class OpenAISegmentTranslator implements SegmentTranslator {
       },
       body: JSON.stringify({
         model: this.model,
-        instructions: JAPANESE_TRANSLATION_INSTRUCTIONS,
+        instructions,
         input
       })
     });
@@ -58,11 +83,7 @@ export class OpenAISegmentTranslator implements SegmentTranslator {
     }
 
     const payload = (await response.json()) as OpenAIResponsesPayload;
-    const translated = readOutputText(payload);
-    if (normalizeForComparison(translated) === normalizeForComparison(input)) {
-      return null;
-    }
-    return translated.length > 0 ? translated : null;
+    return readOutputText(payload);
   }
 }
 
@@ -104,4 +125,36 @@ function sanitizeApiKey(value: string | null | undefined): string {
 
 function normalizeForComparison(text: string): string {
   return text.replace(/\s+/g, "").trim();
+}
+
+function isUsableJapaneseTranslation(input: string, output: string): boolean {
+  const translated = output.trim();
+  if (!translated) {
+    return false;
+  }
+  if (normalizeForComparison(translated) === normalizeForComparison(input)) {
+    return false;
+  }
+  const copiedChineseRuns = extractHanRuns(input).filter((run) => {
+    return run.length >= 6 && translated.includes(run);
+  });
+  if (copiedChineseRuns.length > 0) {
+    return false;
+  }
+  if (!containsKana(translated) && countHanCharacters(translated) >= 6) {
+    return false;
+  }
+  return true;
+}
+
+function extractHanRuns(text: string): string[] {
+  return text.match(/[\p{Script=Han}]{2,}/gu) ?? [];
+}
+
+function containsKana(text: string): boolean {
+  return /[\u3040-\u309f\u30a0-\u30ff]/u.test(text);
+}
+
+function countHanCharacters(text: string): number {
+  return (text.match(/\p{Script=Han}/gu) ?? []).length;
 }

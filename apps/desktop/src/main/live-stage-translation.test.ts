@@ -162,6 +162,25 @@ describe("backfillChineseTranslation", () => {
 
     expect(segment.translationError).toBe("network_error");
   });
+
+  it("marks untranslated output when every chunk falls back to chinese", async () => {
+    const segment = createSegment("这是新的中文。");
+
+    backfillChineseTranslation({
+      detectedLanguage: "zh",
+      onError: vi.fn(),
+      onTranslated: vi.fn(),
+      segment,
+      segmentTranslator: {
+        translateChineseToJapanese: vi.fn(async () => null)
+      }
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(segment.translationError).toBe("untranslated_output");
+    expect(segment.jaTranslation).toBeNull();
+  });
 });
 
 function createSegment(improvedAutoTranscript: string): SegmentRecord {

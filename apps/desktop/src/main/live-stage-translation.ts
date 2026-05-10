@@ -115,23 +115,33 @@ async function runTranslationTask({
     segment.timings ??= {};
     segment.timings.translationStartedAt = new Date().toISOString();
     const chunks = splitTranslationChunks(improvedText);
-    const translatedChunks: string[] = [];
+    const translatedChunks: Array<string | null> = Array.from(
+      { length: chunks.length },
+      () => null
+    );
+    let translatedCount = 0;
     for (const [index, chunk] of chunks.entries()) {
       const jaTranslation = await segmentTranslator.translateChineseToJapanese(chunk);
       if (!jaTranslation?.trim()) {
         continue;
       }
-      translatedChunks.push(jaTranslation.trim());
+      translatedChunks[index] = jaTranslation.trim();
+      translatedCount += 1;
       segment.jaTranslation = buildProgressiveTranslation(chunks, translatedChunks);
       segment.translationError = null;
       segment.timings.translationFirstChunkAt ??= new Date().toISOString();
-      segment.status = index === chunks.length - 1
-        ? "translation_ready"
-        : "auto_improved";
+      segment.status = translatedCount === chunks.length ? "translation_ready" : "auto_improved";
       if (segment.status === "translation_ready") {
         segment.timings.translationCompletedAt = new Date().toISOString();
       }
       onTranslated();
+    }
+    if (translatedCount === 0) {
+      segment.translationError = "untranslated_output";
+      return;
+    }
+    if (translatedCount < chunks.length) {
+      segment.translationError = "partial_untranslated_output";
     }
   } catch (error) {
     segment.translationError = summarizeTranslationError(error);
@@ -141,7 +151,7 @@ async function runTranslationTask({
 
 export function buildProgressiveTranslation(
   sourceChunks: string[],
-  translatedChunks: string[]
+  translatedChunks: Array<string | null>
 ): string {
   return sourceChunks
     .map((chunk, index) => translatedChunks[index] ?? chunk)
