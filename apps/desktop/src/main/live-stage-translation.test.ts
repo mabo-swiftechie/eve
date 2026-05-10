@@ -72,7 +72,7 @@ describe("backfillChineseTranslation", () => {
     expect(segment.status).toBe("translation_ready");
   });
 
-  it("finishes the current request and then runs only the newest queued segment", async () => {
+  it("finishes the current request and then prioritizes the newest queued segment first", async () => {
     let resolveFirstOldChunk: ((value: string) => void) | null = null;
     let resolveSecondOldChunk: ((value: string) => void) | null = null;
     let resolveNewestChunk: ((value: string) => void) | null = null;
@@ -89,7 +89,7 @@ describe("backfillChineseTranslation", () => {
           });
         }
         if (text === "中间那句其实已经过时了。") {
-          return Promise.resolve("这条不该被执行。");
+          return Promise.resolve("旧排队翻译。");
         }
         if (!resolveFirstOldChunk) {
           return new Promise<string>((resolve) => {
@@ -136,7 +136,6 @@ describe("backfillChineseTranslation", () => {
     await Promise.resolve();
 
     expect(oldSegment.jaTranslation).toBe("旧段第一块。旧段第二块。");
-    expect(staleMiddleSegment.jaTranslation).toBeNull();
     expect(newestSegment.jaTranslation).toBe("新段翻译。");
   });
 

@@ -2,6 +2,11 @@ export interface SegmentTranslator {
   translateChineseToJapanese(text: string): Promise<string | null>;
 }
 
+const JAPANESE_TRANSLATION_INSTRUCTIONS =
+  "Translate the user's Chinese speech into natural Japanese. " +
+  "Translate every clause and quoted speech fully into Japanese, " +
+  "do not leave the original Chinese sentence unchanged, and return only the Japanese translation.";
+
 export class PassthroughSegmentTranslator implements SegmentTranslator {
   async translateChineseToJapanese(_text: string): Promise<null> {
     return null;
@@ -43,8 +48,7 @@ export class OpenAISegmentTranslator implements SegmentTranslator {
       },
       body: JSON.stringify({
         model: this.model,
-        instructions:
-          "Translate the user's Chinese speech into natural Japanese. Return only the Japanese translation.",
+        instructions: JAPANESE_TRANSLATION_INSTRUCTIONS,
         input
       })
     });
@@ -55,6 +59,9 @@ export class OpenAISegmentTranslator implements SegmentTranslator {
 
     const payload = (await response.json()) as OpenAIResponsesPayload;
     const translated = readOutputText(payload);
+    if (normalizeForComparison(translated) === normalizeForComparison(input)) {
+      return null;
+    }
     return translated.length > 0 ? translated : null;
   }
 }
@@ -93,4 +100,8 @@ function readOutputText(payload: OpenAIResponsesPayload): string {
 function sanitizeApiKey(value: string | null | undefined): string {
   const token = value?.split(/\s+/).find((item) => item.length > 0);
   return token?.trim() ?? "";
+}
+
+function normalizeForComparison(text: string): string {
+  return text.replace(/\s+/g, "").trim();
 }

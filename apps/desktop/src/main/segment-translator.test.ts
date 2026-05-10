@@ -114,4 +114,23 @@ describe("OpenAISegmentTranslator", () => {
 
     expect(translated).toBeNull();
   });
+
+  it("treats an unchanged chinese echo as untranslated", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          output_text: "这是中文。"
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        }
+      )
+    );
+
+    const translator = new OpenAISegmentTranslator({ apiKey: "test-key" });
+    const translated = await translator.translateChineseToJapanese("这是中文。");
+
+    expect(translated).toBeNull();
+  });
 });

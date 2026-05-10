@@ -2,6 +2,7 @@ import type { SegmentRecord } from "@eve/shared";
 import type { SegmentTranslator } from "./segment-translator";
 
 const TRANSLATION_CHUNK_LIMIT = 48;
+const MAX_PENDING_TRANSLATION_TASKS = 3;
 
 type TranslationTask = {
   onError: (error: unknown) => void;
@@ -11,7 +12,7 @@ type TranslationTask = {
 };
 
 let activeTaskPromise: Promise<void> | null = null;
-let pendingTask: TranslationTask | null = null;
+let pendingTasks: TranslationTask[] = [];
 
 export function backfillChineseTranslation({
   detectedLanguage,
@@ -30,18 +31,18 @@ export function backfillChineseTranslation({
   if (detectedLanguage !== "zh" || !improvedText) {
     return;
   }
-  pendingTask = {
+  enqueueTranslationTask({
     onError,
     onTranslated,
     segment,
     segmentTranslator
-  };
+  });
   activeTaskPromise ??= drainTranslationQueue();
 }
 
 export function resetLiveStageTranslationPriority(): void {
   activeTaskPromise = null;
-  pendingTask = null;
+  pendingTasks = [];
 }
 
 export function splitTranslationChunks(text: string): string[] {
@@ -85,14 +86,16 @@ export function splitTranslationChunks(text: string): string[] {
 
 async function drainTranslationQueue(): Promise<void> {
   try {
-    while (pendingTask) {
-      const task = pendingTask;
-      pendingTask = null;
+    while (pendingTasks.length > 0) {
+      const task = pendingTasks.shift();
+      if (!task) {
+        continue;
+      }
       await runTranslationTask(task);
     }
   } finally {
     activeTaskPromise = null;
-    if (pendingTask) {
+    if (pendingTasks.length > 0) {
       activeTaskPromise = drainTranslationQueue();
     }
   }
@@ -158,4 +161,14 @@ function summarizeTranslationError(error: unknown): string {
     return error.message;
   }
   return "translation_failed";
+}
+
+function enqueueTranslationTask(task: TranslationTask): void {
+  pendingTasks = pendingTasks.filter((item) => {
+    return item.segment.segmentId !== task.segment.segmentId;
+  });
+  pendingTasks.unshift(task);
+  if (pendingTasks.length > MAX_PENDING_TRANSLATION_TASKS) {
+    pendingTasks = pendingTasks.slice(0, MAX_PENDING_TRANSLATION_TASKS);
+  }
 }
