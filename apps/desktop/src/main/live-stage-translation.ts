@@ -118,12 +118,14 @@ async function runTranslationTask({
       }
       translatedChunks.push(jaTranslation.trim());
       segment.jaTranslation = buildProgressiveTranslation(chunks, translatedChunks);
+      segment.translationError = null;
       segment.status = index === chunks.length - 1
         ? "translation_ready"
         : "auto_improved";
       onTranslated();
     }
   } catch (error) {
+    segment.translationError = summarizeTranslationError(error);
     onError(error);
   }
 }
@@ -143,4 +145,17 @@ function splitFallbackChunks(text: string): string[] {
     chunks.push(text.slice(index, index + TRANSLATION_CHUNK_LIMIT));
   }
   return chunks;
+}
+
+function summarizeTranslationError(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes("status 401")) {
+      return "invalid_api_key";
+    }
+    if (error.message.includes("fetch failed")) {
+      return "network_error";
+    }
+    return error.message;
+  }
+  return "translation_failed";
 }

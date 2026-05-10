@@ -102,6 +102,24 @@ describe("LiveStageView", () => {
     expect(markup).toContain("長文も短文もあります。这设计吧。");
   });
 
+  it("shows translation failure details in diagnostics", () => {
+    const markup = renderToStaticMarkup(
+      <LiveStageView
+        snapshot={createSnapshot({
+          activeSegment: createSegment({
+            jaTranslation: null,
+            status: "auto_improved",
+            translationError: "network_error"
+          })
+        })}
+      />
+    );
+
+    expect(markup).toContain("failed");
+    expect(markup).toContain("Translation error");
+    expect(markup).toContain("network_error");
+  });
+
   it("renders waiting state when no stable segment exists", () => {
     const markup = renderToStaticMarkup(
       <LiveStageView snapshot={createSnapshot({ activeSegment: null })} />

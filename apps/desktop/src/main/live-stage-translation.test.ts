@@ -139,6 +139,26 @@ describe("backfillChineseTranslation", () => {
     expect(staleMiddleSegment.jaTranslation).toBeNull();
     expect(newestSegment.jaTranslation).toBe("新段翻译。");
   });
+
+  it("records a friendly translation error when the request fails", async () => {
+    const segment = createSegment("这是新的中文。");
+
+    backfillChineseTranslation({
+      detectedLanguage: "zh",
+      onError: vi.fn(),
+      onTranslated: vi.fn(),
+      segment,
+      segmentTranslator: {
+        translateChineseToJapanese: vi.fn(async () => {
+          throw new Error("fetch failed");
+        })
+      }
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(segment.translationError).toBe("network_error");
+  });
 });
 
 function createSegment(improvedAutoTranscript: string): SegmentRecord {

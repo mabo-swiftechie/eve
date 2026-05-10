@@ -52,6 +52,9 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
             <DebugField label="Normalized" value={segment.detectedLanguage} />
             <DebugField label="Route" value={stageRoute(segment)} />
             <DebugField label="Translation" value={translationState(segment)} />
+            {segment.translationError ? (
+              <DebugField label="Translation error" value={segment.translationError} />
+            ) : null}
           </dl>
         </details>
 
@@ -165,6 +168,9 @@ function stageRoute(segment: SegmentRecord): string {
 function translationState(segment: SegmentRecord): string {
   if (segment.detectedLanguage !== "zh") {
     return "not-applicable";
+  }
+  if (segment.translationError) {
+    return "failed";
   }
   if (!segment.jaTranslation) {
     return "pending";

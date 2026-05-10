@@ -122,6 +122,7 @@ export interface SegmentRecord {
   speakerId: string | null;
   startAt: string;
   status: SegmentRecordStatus;
+  translationError?: string | null;
 }
 
 export type RuleCandidateStatus = "confirmed" | "pending" | "rejected";
