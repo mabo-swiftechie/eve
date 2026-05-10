@@ -121,7 +121,7 @@ async function runTranslationTask({
     );
     let translatedCount = 0;
     for (const [index, chunk] of chunks.entries()) {
-      const jaTranslation = await segmentTranslator.translateChineseToJapanese(chunk);
+      const jaTranslation = await translateChunkWithFallback(segmentTranslator, chunk);
       if (!jaTranslation?.trim()) {
         continue;
       }
@@ -158,12 +158,47 @@ export function buildProgressiveTranslation(
     .join("");
 }
 
+async function translateChunkWithFallback(
+  segmentTranslator: SegmentTranslator,
+  chunk: string
+): Promise<string | null> {
+  const directTranslation = await segmentTranslator.translateChineseToJapanese(chunk);
+  if (directTranslation?.trim()) {
+    return directTranslation.trim();
+  }
+  const retryChunks = splitRetryChunks(chunk);
+  if (retryChunks.length <= 1) {
+    return null;
+  }
+  const translatedRetryChunks = await Promise.all(
+    retryChunks.map((item) => segmentTranslator.translateChineseToJapanese(item))
+  );
+  if (translatedRetryChunks.some((item) => !item?.trim())) {
+    return null;
+  }
+  return translatedRetryChunks.map((item) => item!.trim()).join("");
+}
+
 function splitFallbackChunks(text: string): string[] {
   const chunks: string[] = [];
   for (let index = 0; index < text.length; index += TRANSLATION_CHUNK_LIMIT) {
     chunks.push(text.slice(index, index + TRANSLATION_CHUNK_LIMIT));
   }
   return chunks;
+}
+
+function splitRetryChunks(text: string): string[] {
+  const clauses = text
+    .split(/(?<=[，,、；;：:。！？!?])/u)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
+  if (clauses.length > 1) {
+    return clauses;
+  }
+  const midpoint = Math.ceil(text.length / 2);
+  return [text.slice(0, midpoint).trim(), text.slice(midpoint).trim()].filter(
+    (item) => item.length > 0
+  );
 }
 
 function summarizeTranslationError(error: unknown): string {

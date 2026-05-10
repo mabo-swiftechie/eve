@@ -61,8 +61,7 @@ describe("backfillChineseTranslation", () => {
       segment,
       segmentTranslator: translator
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushTranslationWork();
 
     expect(translator.translateChineseToJapanese).toHaveBeenCalledTimes(2);
     expect(translatedStates).toEqual([
@@ -115,7 +114,7 @@ describe("backfillChineseTranslation", () => {
     });
     expect(resolveFirstOldChunk).toBeTypeOf("function");
     resolveFirstOldChunk!("旧段第一块。");
-    await Promise.resolve();
+    await flushTranslationWork();
     backfillChineseTranslation({
       detectedLanguage: "zh",
       onError: vi.fn(),
@@ -132,12 +131,10 @@ describe("backfillChineseTranslation", () => {
     });
     expect(resolveSecondOldChunk).toBeTypeOf("function");
     resolveSecondOldChunk!("旧段第二块。");
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushTranslationWork();
     expect(resolveNewestChunk).toBeTypeOf("function");
     resolveNewestChunk!("新段翻译。");
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushTranslationWork();
 
     expect(oldSegment.jaTranslation).toBe("旧段第一块。旧段第二块。");
     expect(newestSegment.jaTranslation).toBe("新段翻译。");
@@ -157,8 +154,7 @@ describe("backfillChineseTranslation", () => {
         })
       }
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushTranslationWork();
 
     expect(segment.translationError).toBe("network_error");
   });
@@ -175,11 +171,40 @@ describe("backfillChineseTranslation", () => {
         translateChineseToJapanese: vi.fn(async () => null)
       }
     });
-    await Promise.resolve();
-    await Promise.resolve();
+    await flushTranslationWork();
 
     expect(segment.translationError).toBe("untranslated_output");
     expect(segment.jaTranslation).toBeNull();
+  });
+
+  it("retries a rejected chunk with smaller clause-sized requests", async () => {
+    const segment = createSegment("第一句很长，第二句也很长。");
+    const translator = {
+      translateChineseToJapanese: vi.fn(async (text: string) => {
+        if (text === "第一句很长，第二句也很长。") {
+          return null;
+        }
+        if (text === "第一句很长，") {
+          return "最初の文は長い。";
+        }
+        if (text === "第二句也很长。") {
+          return "二つ目の文も長い。";
+        }
+        return null;
+      })
+    };
+
+    backfillChineseTranslation({
+      detectedLanguage: "zh",
+      onError: vi.fn(),
+      onTranslated: vi.fn(),
+      segment,
+      segmentTranslator: translator
+    });
+    await flushTranslationWork();
+
+    expect(segment.jaTranslation).toBe("最初の文は長い。二つ目の文も長い。");
+    expect(segment.status).toBe("translation_ready");
   });
 });
 
@@ -199,4 +224,10 @@ function createSegment(improvedAutoTranscript: string): SegmentRecord {
     startAt: "2026-05-10T12:00:00.000Z",
     status: "auto_improved"
   };
+}
+
+async function flushTranslationWork(): Promise<void> {
+  for (let index = 0; index < 6; index += 1) {
+    await Promise.resolve();
+  }
 }

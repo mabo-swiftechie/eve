@@ -45,7 +45,7 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
 
         <details className="mt-3 rounded-2xl border border-[color:var(--border)] bg-[color:var(--surface)] p-3">
           <summary className="cursor-pointer list-none text-[11px] font-semibold uppercase tracking-[0.16em] text-[color:var(--muted)]">
-            Diagnostics
+            {diagnosticsSummary(segment)}
           </summary>
           <dl className="mt-3 grid gap-3 text-sm text-[color:var(--foreground)] md:grid-cols-2 xl:grid-cols-4">
             <DebugField label="Raw lang" value={segment.rawDetectedLanguage ?? "unknown"} />
@@ -224,4 +224,12 @@ function timingDelta(
     return `${deltaMs}ms`;
   }
   return `${(deltaMs / 1_000).toFixed(2)}s`;
+}
+
+function diagnosticsSummary(segment: SegmentRecord): string {
+  const state = translationState(segment);
+  if (segment.translationError) {
+    return `Diagnostics · ${state} · ${segment.translationError}`;
+  }
+  return `Diagnostics · ${state}`;
 }

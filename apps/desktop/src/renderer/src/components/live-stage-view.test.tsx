@@ -120,6 +120,7 @@ describe("LiveStageView", () => {
     );
 
     expect(markup).toContain("failed");
+    expect(markup).toContain("Diagnostics · failed · network_error");
     expect(markup).toContain("Translation error");
     expect(markup).toContain("network_error");
   });
