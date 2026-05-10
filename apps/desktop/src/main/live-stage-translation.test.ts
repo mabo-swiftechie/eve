@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SegmentRecord } from "@eve/shared";
 import {
   backfillChineseTranslation,
+  buildProgressiveTranslation,
   resetLiveStageTranslationPriority,
   splitTranslationChunks
 } from "./live-stage-translation";
@@ -24,6 +25,17 @@ describe("splitTranslationChunks", () => {
       "第一句比较长，但是还在一个合理范围内。第二句也不短，而且应该被拆成新的翻译块。",
       "第三句继续补充说明。"
     ]);
+  });
+});
+
+describe("buildProgressiveTranslation", () => {
+  it("keeps untranslated chunks in chinese until each japanese chunk is ready", () => {
+    expect(
+      buildProgressiveTranslation(
+        ["第一块中文。", "第二块中文。", "第三块中文。"],
+        ["第一块日文。"]
+      )
+    ).toBe("第一块日文。第二块中文。第三块中文。");
   });
 });
 
@@ -53,7 +65,10 @@ describe("backfillChineseTranslation", () => {
     await Promise.resolve();
 
     expect(translator.translateChineseToJapanese).toHaveBeenCalledTimes(2);
-    expect(translatedStates).toEqual(["最初の訳です。", "最初の訳です。続きの訳です。"]);
+    expect(translatedStates).toEqual([
+      "最初の訳です。第三句继续补充说明。",
+      "最初の訳です。続きの訳です。"
+    ]);
     expect(segment.status).toBe("translation_ready");
   });
 

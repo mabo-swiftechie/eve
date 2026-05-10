@@ -69,6 +69,39 @@ describe("LiveStageView", () => {
     expect(markup).toContain("この部分を続けて見ていきます。");
   });
 
+  it("shows chinese fallback text in the japanese panel while translation is pending", () => {
+    const markup = renderToStaticMarkup(
+      <LiveStageView
+        snapshot={createSnapshot({
+          activeSegment: createSegment({
+            jaTranslation: null,
+            status: "auto_improved"
+          })
+        })}
+      />
+    );
+
+    expect(markup).toContain("Translation");
+    expect(markup).toContain("pending");
+    expect(markup).toContain("长句短句都有，这设计吧。");
+  });
+
+  it("shows a mixed japanese and chinese panel while chunked translation is streaming", () => {
+    const markup = renderToStaticMarkup(
+      <LiveStageView
+        snapshot={createSnapshot({
+          activeSegment: createSegment({
+            jaTranslation: "長文も短文もあります。这设计吧。",
+            status: "auto_improved"
+          })
+        })}
+      />
+    );
+
+    expect(markup).toContain("streaming");
+    expect(markup).toContain("長文も短文もあります。这设计吧。");
+  });
+
   it("renders waiting state when no stable segment exists", () => {
     const markup = renderToStaticMarkup(
       <LiveStageView snapshot={createSnapshot({ activeSegment: null })} />

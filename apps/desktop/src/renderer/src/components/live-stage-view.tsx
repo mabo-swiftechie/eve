@@ -153,7 +153,7 @@ function secondaryText(
   t: ReturnType<typeof createT>
 ): string {
   if (segment.detectedLanguage === "zh") {
-    return segment.jaTranslation ?? t("liveStageTranslationPending");
+    return segment.jaTranslation ?? segment.improvedAutoTranscript ?? segment.rawTranscript;
   }
   return t("liveStageJapaneseDirectDescription");
 }
@@ -166,7 +166,10 @@ function translationState(segment: SegmentRecord): string {
   if (segment.detectedLanguage !== "zh") {
     return "not-applicable";
   }
-  return segment.jaTranslation ? "ready" : "pending";
+  if (!segment.jaTranslation) {
+    return "pending";
+  }
+  return segment.status === "translation_ready" ? "ready" : "streaming";
 }
 
 function DebugField({ label, value }: { label: string; value: string }) {

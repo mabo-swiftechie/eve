@@ -111,19 +111,30 @@ async function runTranslationTask({
   try {
     const chunks = splitTranslationChunks(improvedText);
     const translatedChunks: string[] = [];
-    for (const chunk of chunks) {
+    for (const [index, chunk] of chunks.entries()) {
       const jaTranslation = await segmentTranslator.translateChineseToJapanese(chunk);
       if (!jaTranslation?.trim()) {
         continue;
       }
       translatedChunks.push(jaTranslation.trim());
-      segment.jaTranslation = translatedChunks.join("");
-      segment.status = "translation_ready";
+      segment.jaTranslation = buildProgressiveTranslation(chunks, translatedChunks);
+      segment.status = index === chunks.length - 1
+        ? "translation_ready"
+        : "auto_improved";
       onTranslated();
     }
   } catch (error) {
     onError(error);
   }
+}
+
+export function buildProgressiveTranslation(
+  sourceChunks: string[],
+  translatedChunks: string[]
+): string {
+  return sourceChunks
+    .map((chunk, index) => translatedChunks[index] ?? chunk)
+    .join("");
 }
 
 function splitFallbackChunks(text: string): string[] {
