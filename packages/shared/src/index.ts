@@ -99,6 +99,15 @@ export interface SentenceCorrection {
   text: string;
 }
 
+export interface SegmentLatencyTimings {
+  liveStagePublishedAt?: string | null;
+  segmentDetectedAt?: string | null;
+  translationCompletedAt?: string | null;
+  translationFirstChunkAt?: string | null;
+  translationQueuedAt?: string | null;
+  translationStartedAt?: string | null;
+}
+
 export type SegmentRecordStatus =
   | "raw_only"
   | "auto_improved"
@@ -122,6 +131,7 @@ export interface SegmentRecord {
   speakerId: string | null;
   startAt: string;
   status: SegmentRecordStatus;
+  timings?: SegmentLatencyTimings;
   translationError?: string | null;
 }
 

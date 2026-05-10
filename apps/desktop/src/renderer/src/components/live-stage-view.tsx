@@ -52,6 +52,22 @@ export function LiveStageView({ snapshot }: { snapshot: DesktopSnapshot }) {
             <DebugField label="Normalized" value={segment.detectedLanguage} />
             <DebugField label="Route" value={stageRoute(segment)} />
             <DebugField label="Translation" value={translationState(segment)} />
+            <DebugField label="Raw publish" value={timingDelta(
+              segment.timings?.segmentDetectedAt,
+              segment.timings?.liveStagePublishedAt
+            )} />
+            <DebugField label="Queue wait" value={timingDelta(
+              segment.timings?.translationQueuedAt,
+              segment.timings?.translationStartedAt
+            )} />
+            <DebugField label="First JA" value={timingDelta(
+              segment.timings?.segmentDetectedAt,
+              segment.timings?.translationFirstChunkAt
+            )} />
+            <DebugField label="Full JA" value={timingDelta(
+              segment.timings?.segmentDetectedAt,
+              segment.timings?.translationCompletedAt
+            )} />
             {segment.translationError ? (
               <DebugField label="Translation error" value={segment.translationError} />
             ) : null}
@@ -189,4 +205,23 @@ function DebugField({ label, value }: { label: string; value: string }) {
       </dd>
     </div>
   );
+}
+
+function timingDelta(
+  startAt: string | null | undefined,
+  endAt: string | null | undefined
+): string {
+  if (!startAt || !endAt) {
+    return "n/a";
+  }
+  const start = Date.parse(startAt);
+  const end = Date.parse(endAt);
+  if (Number.isNaN(start) || Number.isNaN(end) || end < start) {
+    return "n/a";
+  }
+  const deltaMs = end - start;
+  if (deltaMs < 1_000) {
+    return `${deltaMs}ms`;
+  }
+  return `${(deltaMs / 1_000).toFixed(2)}s`;
 }

@@ -394,6 +394,8 @@ export class DesktopEngine {
         : [...this.status.asrHistory];
       this.segment.texts.push(text);
       this.segment.speechSegments.push(enrichedSegment);
+      enrichedSegment.timings ??= {};
+      enrichedSegment.timings.liveStagePublishedAt ??= new Date().toISOString();
       this.patchStatus({
         asrHistory: history.slice(0, HISTORY_LIMIT),
         asrPreview: text,

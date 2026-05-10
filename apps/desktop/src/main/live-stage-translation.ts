@@ -112,6 +112,8 @@ async function runTranslationTask({
     return;
   }
   try {
+    segment.timings ??= {};
+    segment.timings.translationStartedAt = new Date().toISOString();
     const chunks = splitTranslationChunks(improvedText);
     const translatedChunks: string[] = [];
     for (const [index, chunk] of chunks.entries()) {
@@ -122,9 +124,13 @@ async function runTranslationTask({
       translatedChunks.push(jaTranslation.trim());
       segment.jaTranslation = buildProgressiveTranslation(chunks, translatedChunks);
       segment.translationError = null;
+      segment.timings.translationFirstChunkAt ??= new Date().toISOString();
       segment.status = index === chunks.length - 1
         ? "translation_ready"
         : "auto_improved";
+      if (segment.status === "translation_ready") {
+        segment.timings.translationCompletedAt = new Date().toISOString();
+      }
       onTranslated();
     }
   } catch (error) {
@@ -164,6 +170,8 @@ function summarizeTranslationError(error: unknown): string {
 }
 
 function enqueueTranslationTask(task: TranslationTask): void {
+  task.segment.timings ??= {};
+  task.segment.timings.translationQueuedAt = new Date().toISOString();
   pendingTasks = pendingTasks.filter((item) => {
     return item.segment.segmentId !== task.segment.segmentId;
   });

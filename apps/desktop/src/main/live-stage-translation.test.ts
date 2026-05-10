@@ -70,6 +70,10 @@ describe("backfillChineseTranslation", () => {
       "最初の訳です。続きの訳です。"
     ]);
     expect(segment.status).toBe("translation_ready");
+    expect(segment.timings?.translationQueuedAt).toBeTruthy();
+    expect(segment.timings?.translationStartedAt).toBeTruthy();
+    expect(segment.timings?.translationFirstChunkAt).toBeTruthy();
+    expect(segment.timings?.translationCompletedAt).toBeTruthy();
   });
 
   it("finishes the current request and then prioritizes the newest queued segment first", async () => {

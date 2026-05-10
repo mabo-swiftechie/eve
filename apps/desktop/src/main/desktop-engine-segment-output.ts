@@ -115,6 +115,14 @@ export function buildEnrichedSegmentRecord({
     speakerId,
     startAt: new Date(startAtMs).toISOString(),
     status: jaTranslation ? "translation_ready" : "auto_improved",
+    timings: {
+      liveStagePublishedAt: null,
+      segmentDetectedAt: new Date().toISOString(),
+      translationCompletedAt: jaTranslation ? new Date().toISOString() : null,
+      translationFirstChunkAt: jaTranslation ? new Date().toISOString() : null,
+      translationQueuedAt: null,
+      translationStartedAt: null
+    },
     translationError: null,
     text: rawTranscript
   };
@@ -215,6 +223,7 @@ function serializeSegmentRecord(
     speaker_id: segment.speakerId,
     start_at: segment.startAt,
     status: segment.status,
+    timings: segment.timings ?? null,
     translation_error: segment.translationError ?? null,
     text: segment.text
   };

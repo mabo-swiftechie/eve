@@ -40,7 +40,11 @@ describe("ReviewStore", () => {
           }
         ],
         speakerDisplayName: "王晋",
-        status: "translation_ready"
+        status: "translation_ready",
+        timings: expect.objectContaining({
+          segmentDetectedAt: "2026-05-08T11:00:00.000Z",
+          translationCompletedAt: "2026-05-08T11:00:01.900Z"
+        })
       })
     ]);
   });
@@ -257,7 +261,15 @@ async function createReviewDirectory(): Promise<string> {
           speaker_display_name: "王晋",
           speaker_id: "speaker-wj",
           start_at: "2026-05-08T11:00:00.000Z",
-          status: "translation_ready"
+          status: "translation_ready",
+          timings: {
+            liveStagePublishedAt: "2026-05-08T11:00:00.050Z",
+            segmentDetectedAt: "2026-05-08T11:00:00.000Z",
+            translationCompletedAt: "2026-05-08T11:00:01.900Z",
+            translationFirstChunkAt: "2026-05-08T11:00:01.350Z",
+            translationQueuedAt: "2026-05-08T11:00:00.080Z",
+            translationStartedAt: "2026-05-08T11:00:00.400Z"
+          }
         }
       ]
     }, null, 2)}\n`,

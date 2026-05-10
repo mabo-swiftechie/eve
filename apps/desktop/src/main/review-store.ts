@@ -184,7 +184,8 @@ function parseSegment(
     speakerId: toNullableText(value.speaker_id),
     sourceJsonPath,
     startAt: toText(value.start_at),
-    status: parseStatus(value.status)
+    status: parseStatus(value.status),
+    timings: parseSegmentTimings(value.timings)
   };
 }
 
@@ -198,6 +199,22 @@ function parseStatus(value: unknown): SegmentRecord["status"] {
     return value;
   }
   return "raw_only";
+}
+
+function parseSegmentTimings(
+  value: unknown
+): SegmentRecord["timings"] | undefined {
+  if (!isObject(value)) {
+    return undefined;
+  }
+  return {
+    liveStagePublishedAt: toNullableText(value.liveStagePublishedAt),
+    segmentDetectedAt: toNullableText(value.segmentDetectedAt),
+    translationCompletedAt: toNullableText(value.translationCompletedAt),
+    translationFirstChunkAt: toNullableText(value.translationFirstChunkAt),
+    translationQueuedAt: toNullableText(value.translationQueuedAt),
+    translationStartedAt: toNullableText(value.translationStartedAt)
+  };
 }
 
 function toNullableText(value: unknown): string | null {

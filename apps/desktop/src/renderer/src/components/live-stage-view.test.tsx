@@ -43,6 +43,10 @@ describe("LiveStageView", () => {
     expect(markup).toContain("zh");
     expect(markup).toContain("Route");
     expect(markup).toContain("zh→ja");
+    expect(markup).toContain("Raw publish");
+    expect(markup).toContain("50ms");
+    expect(markup).toContain("First JA");
+    expect(markup).toContain("1.35s");
   });
 
   it("renders bilingual recent stage cards for chinese segments", () => {
@@ -194,6 +198,14 @@ function createSegment(
     speakerId: "speaker-wj",
     startAt: "2026-05-08T11:00:00.000Z",
     status: "translation_ready",
+    timings: {
+      liveStagePublishedAt: "2026-05-08T11:00:00.050Z",
+      segmentDetectedAt: "2026-05-08T11:00:00.000Z",
+      translationCompletedAt: "2026-05-08T11:00:01.900Z",
+      translationFirstChunkAt: "2026-05-08T11:00:01.350Z",
+      translationQueuedAt: "2026-05-08T11:00:00.080Z",
+      translationStartedAt: "2026-05-08T11:00:00.400Z"
+    },
     ...overrides
   };
 }
